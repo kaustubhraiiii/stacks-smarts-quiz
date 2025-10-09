@@ -720,7 +720,33 @@ export const questions: Question[] = [
   }
 ];
 
-export const getQuestionsByTopicAndDifficulty = (
+export const getQuestionsByTopicAndDifficulty = async (
+  topic: Question['topic'],
+  difficulty: Question['difficulty'],
+  useAI: boolean = true
+): Promise<Question[]> => {
+  // If AI is enabled, try to get AI-generated questions first
+  if (useAI) {
+    try {
+      const { AIQuestionManager } = await import('@/services/aiQuestionManager');
+      const aiQuestions = await AIQuestionManager.getQuestions(topic, difficulty);
+      
+      if (aiQuestions.length > 0) {
+        console.log(`Using ${aiQuestions.length} AI questions for ${topic} - ${difficulty}`);
+        return aiQuestions;
+      }
+    } catch (error) {
+      console.error('Error fetching AI questions, falling back to static questions:', error);
+    }
+  }
+
+  // Fallback to static questions
+  console.log(`Using static questions for ${topic} - ${difficulty}`);
+  return questions.filter(q => q.topic === topic && q.difficulty === difficulty);
+};
+
+// Keep the synchronous version for backward compatibility
+export const getStaticQuestionsByTopicAndDifficulty = (
   topic: Question['topic'],
   difficulty: Question['difficulty']
 ): Question[] => {

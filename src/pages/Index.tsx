@@ -6,10 +6,11 @@ import { QuizResults } from '@/components/QuizResults';
 import { Leaderboard } from '@/components/Leaderboard';
 import { AuthModal } from '@/components/auth/AuthModal';
 import { UserProfile } from '@/components/auth/UserProfile';
+import { AIBrain } from '@/components/ai/AIBrain';
 import { Button } from '@/components/ui/button';
 import { Topic, Difficulty, QuizState, Question } from '@/types/quiz';
 import { getQuestionsByTopicAndDifficulty } from '@/data/questions';
-import { GraduationCap, Trophy, LogIn } from 'lucide-react';
+import { GraduationCap, Trophy, LogIn, Brain } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAuth } from '@/contexts/AuthContext';
 import { DatabaseService } from '@/services/database';
@@ -32,6 +33,7 @@ const Index = () => {
   const [showLeaderboard, setShowLeaderboard] = useState(false);
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [authMode, setAuthMode] = useState<'login' | 'signup'>('login');
+  const [showAIBrain, setShowAIBrain] = useState(false);
   const [quizState, setQuizState] = useState<QuizState>({
     currentQuestion: 0,
     score: 0,
@@ -90,32 +92,43 @@ const Index = () => {
     console.log('Screen set to difficulty');
   };
 
-  const handleDifficultySelect = (difficulty: Difficulty) => {
+  const handleDifficultySelect = async (difficulty: Difficulty) => {
     console.log('Difficulty selected:', difficulty, 'for topic:', selectedTopic);
     setSelectedDifficulty(difficulty);
-    const quizQuestions = getQuestionsByTopicAndDifficulty(selectedTopic!, difficulty);
-    console.log('Quiz questions found:', quizQuestions.length);
     
-    if (quizQuestions.length === 0) {
-      toast.error('No questions available for this topic and difficulty combination');
-      return;
+    // Show loading state
+    toast.loading('Loading questions...', {
+      description: 'Fetching AI-generated questions...'
+    });
+    
+    try {
+      const quizQuestions = await getQuestionsByTopicAndDifficulty(selectedTopic!, difficulty);
+      console.log('Quiz questions found:', quizQuestions.length);
+      
+      if (quizQuestions.length === 0) {
+        toast.error('No questions available for this topic and difficulty combination');
+        return;
+      }
+      
+      setQuestions(quizQuestions);
+      setQuizState({
+        currentQuestion: 0,
+        score: 0,
+        answers: new Array(quizQuestions.length).fill(null),
+        hintsUsed: 0,
+        timeRemaining: QUIZ_DURATIONS[difficulty],
+        isComplete: false
+      });
+      setShowFeedback(false);
+      setScreen('quiz');
+      console.log('Screen set to quiz');
+      toast.success('Quiz Started!', {
+        description: `Answer ${quizQuestions.length} questions on ${selectedTopic}`
+      });
+    } catch (error) {
+      console.error('Error loading questions:', error);
+      toast.error('Failed to load questions');
     }
-    
-    setQuestions(quizQuestions);
-    setQuizState({
-      currentQuestion: 0,
-      score: 0,
-      answers: new Array(quizQuestions.length).fill(null),
-      hintsUsed: 0,
-      timeRemaining: QUIZ_DURATIONS[difficulty],
-      isComplete: false
-    });
-    setShowFeedback(false);
-    setScreen('quiz');
-    console.log('Screen set to quiz');
-    toast.success('Quiz Started!', {
-      description: `Answer ${quizQuestions.length} questions on ${selectedTopic}`
-    });
   };
 
   const handleAnswer = (answerIndex: number) => {
@@ -233,6 +246,40 @@ const Index = () => {
     console.log('Auth modal state set to:', true);
   };
 
+  const handleAIQuizStart = (questions: Question[], topic: string, difficulty: string) => {
+    console.log('Starting AI quiz with questions:', questions);
+    
+    if (questions.length === 0) {
+      toast.error('No questions available to start quiz');
+      return;
+    }
+
+    // Set the quiz state with AI-generated questions
+    setQuestions(questions);
+    setSelectedTopic(topic as Topic);
+    setSelectedDifficulty(difficulty as Difficulty);
+    
+    // Calculate quiz duration based on difficulty
+    const duration = QUIZ_DURATIONS[difficulty as Difficulty] || 60;
+    
+    setQuizState({
+      currentQuestion: 0,
+      score: 0,
+      answers: new Array(questions.length).fill(null),
+      hintsUsed: 0,
+      timeRemaining: duration,
+      isComplete: false
+    });
+    
+    setShowFeedback(false);
+    setShowAIBrain(false); // Hide AI Brain and go to quiz
+    setScreen('quiz');
+    
+    toast.success('AI Quiz Started!', {
+      description: `Answer ${questions.length} AI-generated questions`
+    });
+  };
+
   // Debug logging
   console.log('Current screen:', screen);
   console.log('Selected topic:', selectedTopic);
@@ -326,6 +373,10 @@ const Index = () => {
                     <Trophy className="w-5 h-5 mr-2" />
                     View Leaderboard
                   </Button>
+                  <Button size="lg" variant="outline" onClick={() => setShowAIBrain(!showAIBrain)}>
+                    <Brain className="w-5 h-5 mr-2" />
+                    AI Brain
+                  </Button>
                 </>
               ) : (
                 <>
@@ -336,6 +387,10 @@ const Index = () => {
                   <Button size="lg" variant="outline" onClick={() => setShowLeaderboard(!showLeaderboard)}>
                     <Trophy className="w-5 h-5 mr-2" />
                     View Leaderboard
+                  </Button>
+                  <Button size="lg" variant="outline" onClick={() => setShowAIBrain(!showAIBrain)}>
+                    <Brain className="w-5 h-5 mr-2" />
+                    AI Brain
                   </Button>
                 </>
               )}
@@ -351,6 +406,27 @@ const Index = () => {
             <Leaderboard />
             <div className="text-center mt-6">
               <Button variant="ghost" onClick={() => setShowLeaderboard(false)}>
+                Back to Topics
+              </Button>
+            </div>
+          </div>
+        ) : showAIBrain ? (
+          <div className="max-w-4xl mx-auto animate-slide-up">
+            <div className="text-center mb-8">
+              <h2 className="text-3xl font-bold mb-3 flex items-center justify-center gap-3">
+                <Brain className="w-8 h-8 text-purple-500" />
+                AI Question Generator
+              </h2>
+              <p className="text-muted-foreground">Generate unlimited quiz questions using AI</p>
+            </div>
+            <AIBrain 
+              onStartQuiz={handleAIQuizStart}
+              onQuestionsGenerated={(questions) => {
+                console.log('AI questions generated:', questions);
+              }}
+            />
+            <div className="text-center mt-6">
+              <Button variant="ghost" onClick={() => setShowAIBrain(false)}>
                 Back to Topics
               </Button>
             </div>
@@ -388,10 +464,10 @@ const Index = () => {
                 </div>
                 <div className="text-center p-6 rounded-lg bg-card border">
                   <div className="w-12 h-12 bg-gradient-primary rounded-full flex items-center justify-center mx-auto mb-4">
-                    <Trophy className="w-6 h-6 text-primary-foreground" />
+                    <Brain className="w-6 h-6 text-primary-foreground" />
                   </div>
-                  <h4 className="font-semibold mb-2">Instant Feedback</h4>
-                  <p className="text-sm text-muted-foreground">Learn from detailed explanations</p>
+                  <h4 className="font-semibold mb-2">AI-Powered Questions</h4>
+                  <p className="text-sm text-muted-foreground">Unlimited questions generated by AI</p>
                 </div>
               </div>
             </div>
