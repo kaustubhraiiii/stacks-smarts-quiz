@@ -14,10 +14,109 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      quiz_attempts: {
+        Row: {
+          id: string
+          user_id: string
+          topic: string
+          difficulty: string
+          score: number
+          total_questions: number
+          time_taken: number
+          hints_used: number
+          completed_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          topic: string
+          difficulty: string
+          score: number
+          total_questions: number
+          time_taken: number
+          hints_used?: number
+          completed_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          topic?: string
+          difficulty?: string
+          score?: number
+          total_questions?: number
+          time_taken?: number
+          hints_used?: number
+          completed_at?: string
+        }
+      }
+      quiz_questions: {
+        Row: {
+          id: string
+          topic: string
+          difficulty: string
+          question: string
+          options: any
+          correct_answer: number
+          explanation: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          topic: string
+          difficulty: string
+          question: string
+          options: any
+          correct_answer: number
+          explanation?: string | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          topic?: string
+          difficulty?: string
+          question?: string
+          options?: any
+          correct_answer?: number
+          explanation?: string | null
+          created_at?: string
+        }
+      }
+      user_profiles: {
+        Row: {
+          id: string
+          full_name: string | null
+          avatar_url: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id: string
+          full_name?: string | null
+          avatar_url?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          full_name?: string | null
+          avatar_url?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+      }
     }
     Views: {
-      [_ in never]: never
+      leaderboard: {
+        Row: {
+          id: string
+          full_name: string | null
+          avatar_url: string | null
+          total_quizzes: number
+          average_score: number | null
+          best_score: number | null
+          total_points: number | null
+        }
+      }
     }
     Functions: {
       [_ in never]: never

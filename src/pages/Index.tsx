@@ -4,11 +4,15 @@ import { DifficultySelector } from '@/components/DifficultySelector';
 import { QuizQuestion } from '@/components/QuizQuestion';
 import { QuizResults } from '@/components/QuizResults';
 import { Leaderboard } from '@/components/Leaderboard';
+import { AuthModal } from '@/components/auth/AuthModal';
+import { UserProfile } from '@/components/auth/UserProfile';
 import { Button } from '@/components/ui/button';
 import { Topic, Difficulty, QuizState, Question } from '@/types/quiz';
 import { getQuestionsByTopicAndDifficulty } from '@/data/questions';
-import { GraduationCap, Trophy } from 'lucide-react';
+import { GraduationCap, Trophy, LogIn } from 'lucide-react';
 import { toast } from 'sonner';
+import { useAuth } from '@/contexts/AuthContext';
+import { DatabaseService } from '@/services/database';
 import heroImage from '@/assets/hero-bg.jpg';
 
 type Screen = 'home' | 'difficulty' | 'quiz' | 'results';
@@ -20,11 +24,14 @@ const QUIZ_DURATIONS: Record<Difficulty, number> = {
 };
 
 const Index = () => {
+  const { user, userProfile, loading } = useAuth();
   const [screen, setScreen] = useState<Screen>('home');
   const [selectedTopic, setSelectedTopic] = useState<Topic | null>(null);
   const [selectedDifficulty, setSelectedDifficulty] = useState<Difficulty | null>(null);
   const [questions, setQuestions] = useState<Question[]>([]);
   const [showLeaderboard, setShowLeaderboard] = useState(false);
+  const [showAuthModal, setShowAuthModal] = useState(false);
+  const [authMode, setAuthMode] = useState<'login' | 'signup'>('login');
   const [quizState, setQuizState] = useState<QuizState>({
     currentQuestion: 0,
     score: 0,
@@ -34,6 +41,32 @@ const Index = () => {
     isComplete: false
   });
   const [showFeedback, setShowFeedback] = useState(false);
+
+  // Save quiz attempt to database
+  const saveQuizAttempt = async () => {
+    if (!user || !selectedTopic || !selectedDifficulty) return;
+
+    const timeTaken = QUIZ_DURATIONS[selectedDifficulty] - quizState.timeRemaining;
+    
+    try {
+      await DatabaseService.saveQuizAttempt({
+        user_id: user.id,
+        topic: selectedTopic,
+        difficulty: selectedDifficulty,
+        score: quizState.score,
+        total_questions: questions.length,
+        time_taken: timeTaken,
+        hints_used: quizState.hintsUsed
+      });
+      
+      toast.success('Quiz results saved!', {
+        description: `You scored ${quizState.score}/${questions.length}`
+      });
+    } catch (error) {
+      console.error('Error saving quiz attempt:', error);
+      toast.error('Failed to save quiz results');
+    }
+  };
 
   // Timer effect
   useEffect(() => {
@@ -51,13 +84,23 @@ const Index = () => {
   }, [screen, quizState.timeRemaining, showFeedback]);
 
   const handleTopicSelect = (topic: Topic) => {
+    console.log('Topic selected:', topic);
     setSelectedTopic(topic);
     setScreen('difficulty');
+    console.log('Screen set to difficulty');
   };
 
   const handleDifficultySelect = (difficulty: Difficulty) => {
+    console.log('Difficulty selected:', difficulty, 'for topic:', selectedTopic);
     setSelectedDifficulty(difficulty);
     const quizQuestions = getQuestionsByTopicAndDifficulty(selectedTopic!, difficulty);
+    console.log('Quiz questions found:', quizQuestions.length);
+    
+    if (quizQuestions.length === 0) {
+      toast.error('No questions available for this topic and difficulty combination');
+      return;
+    }
+    
     setQuestions(quizQuestions);
     setQuizState({
       currentQuestion: 0,
@@ -69,6 +112,7 @@ const Index = () => {
     });
     setShowFeedback(false);
     setScreen('quiz');
+    console.log('Screen set to quiz');
     toast.success('Quiz Started!', {
       description: `Answer ${quizQuestions.length} questions on ${selectedTopic}`
     });
@@ -101,6 +145,10 @@ const Index = () => {
       } else {
         setQuizState(prev => ({ ...prev, isComplete: true }));
         setScreen('results');
+        // Save quiz attempt when quiz is completed
+        if (user) {
+          saveQuizAttempt();
+        }
       }
     }, 2500);
   };
@@ -111,6 +159,10 @@ const Index = () => {
     });
     setQuizState(prev => ({ ...prev, isComplete: true }));
     setScreen('results');
+    // Save quiz attempt when quiz times out
+    if (user) {
+      saveQuizAttempt();
+    }
   };
 
   const handleHintUsed = () => {
@@ -169,8 +221,65 @@ const Index = () => {
     );
   }
 
+  const handleAuthSuccess = () => {
+    setShowAuthModal(false);
+    toast.success('Welcome to StackSmarts!');
+  };
+
+  const openAuthModal = (mode: 'login' | 'signup') => {
+    console.log('Opening auth modal:', mode);
+    setAuthMode(mode);
+    setShowAuthModal(true);
+    console.log('Auth modal state set to:', true);
+  };
+
+  // Debug logging
+  console.log('Current screen:', screen);
+  console.log('Selected topic:', selectedTopic);
+  console.log('Questions length:', questions.length);
+  console.log('User state:', { user: !!user, loading, userProfile: !!userProfile });
+  console.log('Show leaderboard:', showLeaderboard);
+
+  // Simplified auth button logic
+  const showAuthButtons = !user;
+
   return (
     <div className="min-h-screen">
+      {/* Header */}
+      <header className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+        <div className="container mx-auto px-4 h-16 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <GraduationCap className="w-8 h-8 text-primary" />
+            <h1 className="text-xl font-bold">StackSmarts</h1>
+          </div>
+          
+          <div className="flex items-center gap-4">
+            {loading ? (
+              <div className="w-8 h-8 animate-pulse bg-muted rounded-full" />
+            ) : user ? (
+              <UserProfile />
+            ) : (
+              <div className="flex items-center gap-2">
+                <Button 
+                  variant="ghost" 
+                  size="sm"
+                  onClick={() => openAuthModal('login')}
+                >
+                  <LogIn className="w-4 h-4 mr-2" />
+                  Sign In
+                </Button>
+                <Button 
+                  size="sm"
+                  onClick={() => openAuthModal('signup')}
+                >
+                  Get Started
+                </Button>
+              </div>
+            )}
+          </div>
+        </div>
+      </header>
+
       {/* Hero Section */}
       <div className="relative overflow-hidden">
         <div 
@@ -199,21 +308,44 @@ const Index = () => {
             </p>
 
             <div className="flex flex-wrap gap-4 justify-center">
-              <Button size="lg" onClick={() => setScreen('home')} className="group">
-                Start Learning
-                <GraduationCap className="w-5 h-5 ml-2 group-hover:rotate-12 transition-transform" />
-              </Button>
-              <Button size="lg" variant="outline" onClick={() => setShowLeaderboard(!showLeaderboard)}>
-                <Trophy className="w-5 h-5 mr-2" />
-                View Leaderboard
-              </Button>
+              {user ? (
+                <>
+                  <Button size="lg" onClick={() => {
+                    console.log('Start Learning clicked');
+                    setShowLeaderboard(false);
+                    // Scroll to topics section
+                    const topicsSection = document.querySelector('.topics-section');
+                    if (topicsSection) {
+                      topicsSection.scrollIntoView({ behavior: 'smooth' });
+                    }
+                  }} className="group">
+                    Start Learning
+                    <GraduationCap className="w-5 h-5 ml-2 group-hover:rotate-12 transition-transform" />
+                  </Button>
+                  <Button size="lg" variant="outline" onClick={() => setShowLeaderboard(!showLeaderboard)}>
+                    <Trophy className="w-5 h-5 mr-2" />
+                    View Leaderboard
+                  </Button>
+                </>
+              ) : (
+                <>
+                  <Button size="lg" onClick={() => openAuthModal('signup')} className="group">
+                    Get Started Free
+                    <GraduationCap className="w-5 h-5 ml-2 group-hover:rotate-12 transition-transform" />
+                  </Button>
+                  <Button size="lg" variant="outline" onClick={() => setShowLeaderboard(!showLeaderboard)}>
+                    <Trophy className="w-5 h-5 mr-2" />
+                    View Leaderboard
+                  </Button>
+                </>
+              )}
             </div>
           </div>
         </div>
       </div>
 
       {/* Main Content */}
-      <div className="container mx-auto px-4 py-12">
+      <div className="container mx-auto px-4 py-12 topics-section">
         {showLeaderboard ? (
           <div className="max-w-3xl mx-auto animate-slide-up">
             <Leaderboard />
@@ -266,6 +398,18 @@ const Index = () => {
           </>
         )}
       </div>
+
+      {/* Auth Modal */}
+      {console.log('Rendering AuthModal with:', { isOpen: showAuthModal, mode: authMode })}
+      <AuthModal
+        isOpen={showAuthModal}
+        onClose={() => {
+          console.log('Closing auth modal');
+          setShowAuthModal(false);
+        }}
+        defaultMode={authMode}
+        onSuccess={handleAuthSuccess}
+      />
     </div>
   );
 };

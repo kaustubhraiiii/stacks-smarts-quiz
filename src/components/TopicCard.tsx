@@ -34,7 +34,13 @@ export const TopicCard = ({ topic, onSelect }: TopicCardProps) => {
   const Icon = info.icon;
 
   return (
-    <Card className="group hover:scale-105 transition-all cursor-pointer animate-slide-up overflow-hidden relative">
+    <Card 
+      className="group hover:scale-105 transition-all cursor-pointer animate-slide-up overflow-hidden relative"
+      onClick={() => {
+        console.log('TopicCard clicked:', topic);
+        onSelect(topic);
+      }}
+    >
       <div className={`absolute inset-0 bg-gradient-to-br ${info.gradient} opacity-0 group-hover:opacity-10 transition-opacity`} />
       <CardHeader>
         <div className="w-12 h-12 rounded-lg bg-gradient-primary flex items-center justify-center mb-4 group-hover:animate-pulse-glow">
@@ -45,7 +51,11 @@ export const TopicCard = ({ topic, onSelect }: TopicCardProps) => {
       </CardHeader>
       <CardContent>
         <Button 
-          onClick={() => onSelect(topic)} 
+          onClick={(e) => {
+            e.stopPropagation();
+            console.log('Start Quiz button clicked:', topic);
+            onSelect(topic);
+          }} 
           className="w-full group/btn"
           variant="outline"
         >
