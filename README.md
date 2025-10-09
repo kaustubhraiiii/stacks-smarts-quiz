@@ -1,73 +1,77 @@
-# Welcome to your Lovable project
+# StackSmarts - AI-Powered CS Quiz Platform
 
-## Project info
+## Project Overview
 
-**URL**: https://lovable.dev/projects/16fc70d3-2483-4f80-bf9e-0e9de92b58e3
+StackSmarts is an interactive quiz platform for computer science students to master Networks, Operating Systems, and Databases through AI-generated questions and adaptive learning.
 
-## How can I edit this code?
+**Live URL**: https://stacks-smarts-quiz-game-94saw9jbg-kaustubh-rais-projects.vercel.app
 
-There are several ways of editing your application.
+## Features
 
-**Use Lovable**
+- 🤖 **AI-Powered Question Generation** using OpenAI
+- 🔐 **User Authentication** with Supabase (Email + Google OAuth)
+- 📊 **Real-time Leaderboard** and progress tracking
+- 🎯 **Adaptive Learning** with difficulty levels
+- 💾 **Database Integration** for persistent user data
+- 📱 **Responsive Design** for all devices
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/16fc70d3-2483-4f80-bf9e-0e9de92b58e3) and start prompting.
+## How to Run Locally
 
-Changes made via Lovable will be committed automatically to this repo.
-
-**Use your preferred IDE**
-
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
-
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
+**Prerequisites**: Node.js & npm installed
 
 Follow these steps:
 
 ```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
+# Step 1: Clone the repository
+git clone https://github.com/kaustubhraiiii/stacks-smarts-quiz.git
 
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
+# Step 2: Navigate to the project directory
+cd stacks-smarts-quiz
 
-# Step 3: Install the necessary dependencies.
-npm i
+# Step 3: Install the necessary dependencies
+npm install
 
-# Step 4: Start the development server with auto-reloading and an instant preview.
+# Step 4: Create environment variables
+cp .env.example .env
+# Edit .env with your API keys
+
+# Step 5: Start the development server
 npm run dev
 ```
 
-**Edit a file directly in GitHub**
+## Environment Variables
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+Create a `.env` file with the following variables:
 
-**Use GitHub Codespaces**
+```env
+VITE_SUPABASE_PROJECT_ID=your_supabase_project_id
+VITE_SUPABASE_PUBLISHABLE_KEY=your_supabase_anon_key
+VITE_SUPABASE_URL=your_supabase_url
+VITE_OPENAI_API_KEY=your_openai_api_key
+```
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
-
-## What technologies are used for this project?
+## Tech Stack
 
 This project is built with:
 
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
+- **Frontend**: React + TypeScript + Vite
+- **UI**: shadcn/ui + Tailwind CSS
+- **Authentication**: Supabase Auth
+- **Database**: Supabase PostgreSQL
+- **AI**: OpenAI GPT-3.5-turbo
+- **Deployment**: Vercel
 
-## How can I deploy this project?
+## Deployment
 
-Simply open [Lovable](https://lovable.dev/projects/16fc70d3-2483-4f80-bf9e-0e9de92b58e3) and click on Share -> Publish.
+This project is deployed on Vercel. See `DEPLOYMENT_GUIDE.md` for detailed deployment instructions.
 
-## Can I connect a custom domain to my Lovable project?
+## Contributing
 
-Yes, you can!
+1. Fork the repository
+2. Create a feature branch
+3. Make your changes
+4. Submit a pull request
 
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
+## License
 
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/features/custom-domain#custom-domain)
+This project is open source and available under the MIT License.
