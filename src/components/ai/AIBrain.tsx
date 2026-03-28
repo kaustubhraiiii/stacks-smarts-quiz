@@ -28,7 +28,7 @@ export const AIBrain: React.FC<AIBrainProps> = ({ onQuestionsGenerated, onStartQ
   const [generatedQuestions, setGeneratedQuestions] = useState<any[]>([]);
   const [showGeneratedQuestions, setShowGeneratedQuestions] = useState(false);
 
-  const topics: Topic[] = ['networks', 'operating-systems', 'databases'];
+  const topics: Topic[] = ['networks', 'operating-systems', 'databases', 'generative-ai', 'machine-learning', 'cloud-computing', 'cybersecurity', 'web-development', 'mathematics'];
   const difficulties: Difficulty[] = ['easy', 'medium', 'hard'];
 
   const handleGenerateQuestions = async () => {
@@ -94,6 +94,13 @@ export const AIBrain: React.FC<AIBrainProps> = ({ onQuestionsGenerated, onStartQ
 
       if (result.success) {
         toast.success(`Bulk generation complete! Generated ${result.totalGenerated} questions.`);
+
+        // Load questions for the currently selected topic/difficulty so user can play
+        const questions = await AIQuestionManager.getQuestions(selectedTopic, selectedDifficulty);
+        if (questions.length > 0) {
+          setGeneratedQuestions(questions);
+          setShowGeneratedQuestions(true);
+        }
       } else {
         toast.error(`Bulk generation failed: ${result.error}`);
       }
@@ -167,7 +174,7 @@ export const AIBrain: React.FC<AIBrainProps> = ({ onQuestionsGenerated, onStartQ
                 <SelectContent>
                   {topics.map((topic) => (
                     <SelectItem key={topic} value={topic}>
-                      {topic.charAt(0).toUpperCase() + topic.slice(1).replace('-', ' ')}
+                      {topic.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')}
                     </SelectItem>
                   ))}
                 </SelectContent>
