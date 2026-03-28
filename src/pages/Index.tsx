@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { TopicCard } from '@/components/TopicCard';
 import { DifficultySelector } from '@/components/DifficultySelector';
 import { QuizQuestion } from '@/components/QuizQuestion';
@@ -10,9 +11,9 @@ import { AIBrain } from '@/components/ai/AIBrain';
 import { Button } from '@/components/ui/button';
 import { Topic, Difficulty, QuizState, Question } from '@/types/quiz';
 import { getQuestionsByTopicAndDifficulty } from '@/data/questions';
-import { Trophy, Brain, Search, Bell, LayoutGrid, BookOpen, Menu, X } from 'lucide-react';
+import { Trophy, Brain, Search, Bell, LayoutGrid, BookOpen, Menu, X, Library } from 'lucide-react';
 import { toast } from 'sonner';
-import { useAuth } from '@/contexts/AuthContext';
+import { useAuthContext } from '@/contexts/AuthContext';
 import { DatabaseService } from '@/services/database';
 import { Logo } from '@/components/ui/Logo';
 
@@ -24,8 +25,15 @@ const QUIZ_DURATIONS: Record<Difficulty, number> = {
   hard: 75
 };
 
+const ALL_TOPICS: Topic[] = [
+  'networks', 'operating-systems', 'databases',
+  'generative-ai', 'machine-learning', 'cloud-computing',
+  'cybersecurity', 'web-development', 'mathematics'
+];
+
 const Index = () => {
-  const { user, userProfile, loading } = useAuth();
+  const navigate = useNavigate();
+  const { userId, isSignedIn, isLoaded, supabaseClient } = useAuthContext();
   const [screen, setScreen] = useState<Screen>('home');
   const [activeTab, setActiveTab] = useState<'topics' | 'leaderboard' | 'ai'>('topics');
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
@@ -46,11 +54,11 @@ const Index = () => {
 
   // Save quiz attempt to database
   const saveQuizAttempt = async () => {
-    if (!user || !selectedTopic || !selectedDifficulty) return;
+    if (!userId || !selectedTopic || !selectedDifficulty) return;
     const timeTaken = QUIZ_DURATIONS[selectedDifficulty] - quizState.timeRemaining;
     try {
-      await DatabaseService.saveQuizAttempt({
-        user_id: user.id,
+      await DatabaseService.saveQuizAttempt(supabaseClient, {
+        user_id: userId,
         topic: selectedTopic,
         difficulty: selectedDifficulty,
         score: quizState.score,
@@ -87,7 +95,7 @@ const Index = () => {
   const handleDifficultySelect = async (difficulty: Difficulty) => {
     setSelectedDifficulty(difficulty);
     toast.loading('Loading questions...', { description: 'Fetching AI-generated questions...' });
-    
+
     try {
       const quizQuestions = await getQuestionsByTopicAndDifficulty(selectedTopic!, difficulty);
       if (quizQuestions.length === 0) {
@@ -115,7 +123,7 @@ const Index = () => {
   const handleAnswer = (answerIndex: number) => {
     const currentQuestion = questions[quizState.currentQuestion];
     const isCorrect = answerIndex === currentQuestion.correctAnswer;
-    
+
     setQuizState(prev => {
       const newAnswers = [...prev.answers];
       newAnswers[prev.currentQuestion] = answerIndex;
@@ -130,7 +138,7 @@ const Index = () => {
       } else {
         setQuizState(prev => ({ ...prev, isComplete: true }));
         setScreen('results');
-        if (user) saveQuizAttempt();
+        if (userId) saveQuizAttempt();
       }
     }, 2500);
   };
@@ -139,7 +147,7 @@ const Index = () => {
     toast.error('Time\'s Up!', { description: 'The quiz has ended due to timeout' });
     setQuizState(prev => ({ ...prev, isComplete: true }));
     setScreen('results');
-    if (user) saveQuizAttempt();
+    if (userId) saveQuizAttempt();
   };
 
   const handleHintUsed = () => setQuizState(prev => ({ ...prev, hintsUsed: prev.hintsUsed + 1 }));
@@ -175,7 +183,7 @@ const Index = () => {
     setQuestions(questions);
     setSelectedTopic(topic as Topic);
     setSelectedDifficulty(difficulty as Difficulty);
-    
+
     const duration = QUIZ_DURATIONS[difficulty as Difficulty] || 60;
     setQuizState({
       currentQuestion: 0,
@@ -185,7 +193,7 @@ const Index = () => {
       timeRemaining: duration,
       isComplete: false
     });
-    
+
     setShowFeedback(false);
     setScreen('quiz');
     toast.success('AI Quiz Started!', { description: `Answer ${questions.length} AI-generated questions` });
@@ -201,7 +209,7 @@ const Index = () => {
     <div className="min-h-screen bg-background p-4 md:p-6 lg:p-8 flex items-center justify-center font-sans">
       {/* Main App Container */}
       <div className="w-full max-w-screen-2xl bg-card rounded-[32px] shadow-main border border-border flex flex-col md:flex-row min-h-[calc(100vh-2rem)] md:min-h-[calc(100vh-4rem)] overflow-hidden relative">
-        
+
         {/* Mobile Header */}
         <div className="md:hidden flex items-center justify-between p-6 border-b border-border">
           <div className="flex items-center gap-3">
@@ -226,19 +234,26 @@ const Index = () => {
             <div>
               <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-4 ml-3">Learning Content</h2>
               <nav className="space-y-2">
-                <button 
+                <button
                   onClick={() => changeTab('topics')}
                   className={`w-full flex items-center gap-3 px-4 py-3.5 rounded-2xl text-[15px] font-medium transition-all ${activeTab === 'topics' && screen === 'home' ? 'bg-primary/10 text-primary' : 'text-muted-foreground hover:bg-secondary/80 hover:text-foreground'}`}
                 >
                   <LayoutGrid className="w-5 h-5" />
                   Topics
                 </button>
-                <button 
+                <button
                   onClick={() => changeTab('ai')}
                   className={`w-full flex items-center gap-3 px-4 py-3.5 rounded-2xl text-[15px] font-medium transition-all ${activeTab === 'ai' && screen === 'home' ? 'bg-primary/10 text-primary' : 'text-muted-foreground hover:bg-secondary/80 hover:text-foreground'}`}
                 >
                   <Brain className="w-5 h-5" />
                   AI Generator
+                </button>
+                <button
+                  onClick={() => navigate('/library')}
+                  className="w-full flex items-center gap-3 px-4 py-3.5 rounded-2xl text-[15px] font-medium transition-all text-muted-foreground hover:bg-secondary/80 hover:text-foreground"
+                >
+                  <Library className="w-5 h-5" />
+                  Library
                 </button>
               </nav>
             </div>
@@ -246,7 +261,7 @@ const Index = () => {
             <div>
               <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-4 ml-3">Community</h2>
               <nav className="space-y-2">
-                <button 
+                <button
                   onClick={() => changeTab('leaderboard')}
                   className={`w-full flex items-center gap-3 px-4 py-3.5 rounded-2xl text-[15px] font-medium transition-all ${activeTab === 'leaderboard' && screen === 'home' ? 'bg-primary/10 text-primary' : 'text-muted-foreground hover:bg-secondary/80 hover:text-foreground'}`}
                 >
@@ -259,9 +274,9 @@ const Index = () => {
 
           {/* Bottom Profile / Auth */}
           <div className="mt-8 pt-8 border-t border-border">
-            {loading ? (
+            {!isLoaded ? (
                <div className="w-10 h-10 animate-pulse bg-secondary rounded-full" />
-            ) : user ? (
+            ) : isSignedIn ? (
                <UserProfile />
             ) : (
               <div className="space-y-3 p-4 bg-orange-50/50 rounded-3xl">
@@ -288,7 +303,7 @@ const Index = () => {
           {/* Top Header */}
           <header className="h-24 px-10 flex items-center justify-between">
             <h2 className="text-3xl font-bold tracking-tight text-foreground">
-               {screen === 'home' && activeTab === 'topics' ? 'Courses' : 
+               {screen === 'home' && activeTab === 'topics' ? 'Courses' :
                 screen === 'home' && activeTab === 'ai' ? 'AI Generator' :
                 screen === 'home' && activeTab === 'leaderboard' ? 'Leaderboard' :
                 screen === 'difficulty' ? 'Select Difficulty' :
@@ -297,9 +312,9 @@ const Index = () => {
             <div className="hidden md:flex items-center gap-6">
               <div className="relative">
                 <Search className="w-4 h-4 absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground" />
-                <input 
-                  type="text" 
-                  placeholder="Search" 
+                <input
+                  type="text"
+                  placeholder="Search"
                   className="pl-11 pr-4 py-3 bg-secondary rounded-full text-[15px] focus:outline-none focus:ring-2 focus:ring-primary/20 w-72 text-foreground font-medium placeholder:font-normal"
                 />
               </div>
@@ -346,7 +361,7 @@ const Index = () => {
                   <h3 className="text-2xl font-bold mb-2 text-card-purple">Generate Custom Quizzes</h3>
                   <p className="text-muted-foreground">Use our AI to instantly create adaptive questions on any topic.</p>
                 </div>
-                <AIBrain 
+                <AIBrain
                   onStartQuiz={handleAIQuizStart}
                   onQuestionsGenerated={(questions) => console.log('Generated', questions)}
                 />
@@ -369,22 +384,22 @@ const Index = () => {
                     </div>
                   </div>
                   <div className="mt-4 sm:mt-0 text-[15px] font-medium text-muted-foreground">
-                    Published 3 courses
+                    Published {ALL_TOPICS.length} courses
                   </div>
                 </div>
 
                 {/* Grid */}
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 gap-8">
-                   <TopicCard topic="networks" onSelect={handleTopicSelect} />
-                   <TopicCard topic="operating-systems" onSelect={handleTopicSelect} />
-                   <TopicCard topic="databases" onSelect={handleTopicSelect} />
+                   {ALL_TOPICS.map((topic) => (
+                     <TopicCard key={topic} topic={topic} onSelect={handleTopicSelect} />
+                   ))}
                 </div>
               </div>
             )}
           </div>
         </main>
       </div>
-      
+
       <AuthModal
         isOpen={showAuthModal}
         onClose={() => setShowAuthModal(false)}
