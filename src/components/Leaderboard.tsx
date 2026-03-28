@@ -107,10 +107,10 @@ export const Leaderboard = () => {
           {leaderboardData.map((entry, index) => (
             <div
               key={entry.id}
-              className={`flex items-center gap-4 p-4 rounded-lg transition-colors ${
+              className={`flex items-center gap-4 p-4 rounded-2xl transition-all hover:scale-[1.01] ${
                 index < 3 
-                  ? 'bg-gradient-primary/10 border border-primary/20' 
-                  : 'bg-muted/50'
+                  ? 'bg-primary/10 border border-primary/20' 
+                  : 'bg-secondary/50 border border-transparent'
               }`}
             >
               <div className="flex items-center justify-center w-10">

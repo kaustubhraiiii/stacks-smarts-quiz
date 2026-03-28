@@ -45,7 +45,7 @@ export const QuizQuestion = ({
   }, [question.id]);
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4">
+    <div className="w-full flex justify-center">
       <div className="w-full max-w-3xl animate-slide-up">
         {/* Header */}
         <div className="mb-6">
@@ -93,7 +93,7 @@ export const QuizQuestion = ({
                 <Button
                   key={index}
                   variant={buttonVariant}
-                  className="w-full justify-start text-left h-auto py-4 px-6 relative group"
+                  className="w-full justify-start text-left h-auto py-4 px-6 relative group rounded-2xl"
                   onClick={() => !showFeedback && onAnswer(index)}
                   disabled={showFeedback}
                 >

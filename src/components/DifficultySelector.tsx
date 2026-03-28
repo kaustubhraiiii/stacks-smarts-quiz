@@ -1,4 +1,3 @@
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Difficulty } from '@/types/quiz';
 import { Flame, Zap, Target } from 'lucide-react';
@@ -13,66 +12,64 @@ const difficultyInfo = {
     title: 'Easy',
     description: '5 questions • 60 seconds',
     icon: Target,
-    color: 'text-success'
+    colorClass: 'text-success',
+    bgClass: 'bg-success/10'
   },
   medium: {
     title: 'Medium',
     description: '7 questions • 90 seconds',
     icon: Zap,
-    color: 'text-warning'
+    colorClass: 'text-warning',
+    bgClass: 'bg-warning/10'
   },
   hard: {
     title: 'Hard',
     description: '5 questions • 75 seconds',
     icon: Flame,
-    color: 'text-destructive'
+    colorClass: 'text-destructive',
+    bgClass: 'bg-destructive/10'
   }
 };
 
 export const DifficultySelector = ({ onSelect, onBack }: DifficultySelectorProps) => {
   return (
-    <div className="min-h-screen flex items-center justify-center p-4">
-      <div className="w-full max-w-4xl animate-slide-up">
-        <div className="text-center mb-8">
-          <h2 className="text-4xl font-bold mb-2 bg-gradient-primary bg-clip-text text-transparent">
-            Choose Your Challenge
-          </h2>
-          <p className="text-muted-foreground">Select the difficulty level that suits you best</p>
-        </div>
-        
-        <div className="grid md:grid-cols-3 gap-6 mb-6">
-          {(Object.keys(difficultyInfo) as Difficulty[]).map((difficulty) => {
-            const info = difficultyInfo[difficulty];
-            const Icon = info.icon;
-            
-            return (
-              <Card 
-                key={difficulty}
-                className="group hover:scale-105 transition-all cursor-pointer"
-                onClick={() => onSelect(difficulty)}
-              >
-                <CardHeader className="text-center">
-                  <div className={`w-16 h-16 mx-auto rounded-full bg-gradient-primary flex items-center justify-center mb-4 group-hover:animate-pulse-glow`}>
-                    <Icon className={`w-8 h-8 ${info.color}`} />
-                  </div>
-                  <CardTitle className="text-2xl">{info.title}</CardTitle>
-                  <CardDescription className="text-base">{info.description}</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <Button className="w-full" variant="outline">
-                    Select
-                  </Button>
-                </CardContent>
-              </Card>
-            );
-          })}
-        </div>
-        
-        <div className="text-center">
-          <Button variant="ghost" onClick={onBack}>
-            ← Back to Topics
-          </Button>
-        </div>
+    <div className="w-full flex-col">
+      <div className="text-center mb-10">
+        <h2 className="text-3xl font-bold mb-3 text-foreground tracking-tight">
+          Choose Your Challenge
+        </h2>
+        <p className="text-muted-foreground text-[15px]">Select the difficulty level that suits you best</p>
+      </div>
+      
+      <div className="grid md:grid-cols-3 gap-6 mb-10">
+        {(Object.keys(difficultyInfo) as Difficulty[]).map((difficulty) => {
+          const info = difficultyInfo[difficulty];
+          const Icon = info.icon;
+          
+          return (
+            <div 
+              key={difficulty}
+              className="group bg-white border border-border rounded-3xl p-8 hover:shadow-main transition-all cursor-pointer text-center"
+              onClick={() => onSelect(difficulty)}
+            >
+              <div className={`w-20 h-20 mx-auto rounded-full ${info.bgClass} flex items-center justify-center mb-6 transition-transform group-hover:scale-110`}>
+                <Icon className={`w-10 h-10 ${info.colorClass}`} />
+              </div>
+              <h3 className="text-2xl font-bold mb-2 text-foreground">{info.title}</h3>
+              <p className="text-[15px] text-muted-foreground mb-8">{info.description}</p>
+              
+              <Button className="w-full rounded-full bg-secondary text-foreground hover:bg-secondary/80 font-semibold" variant="ghost">
+                Select
+              </Button>
+            </div>
+          );
+        })}
+      </div>
+      
+      <div className="text-center">
+        <Button variant="ghost" className="rounded-full text-muted-foreground hover:text-foreground" onClick={onBack}>
+          ← Back to Courses
+        </Button>
       </div>
     </div>
   );

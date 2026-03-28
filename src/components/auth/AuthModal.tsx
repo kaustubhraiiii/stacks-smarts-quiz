@@ -31,8 +31,8 @@ export const AuthModal: React.FC<AuthModalProps> = ({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader>
+      <DialogContent className="sm:max-w-md p-0 border-none bg-transparent shadow-none">
+        <DialogHeader className="hidden">
           <DialogTitle className="sr-only">
             {mode === 'login' ? 'Sign in to your account' : 'Create a new account'}
           </DialogTitle>

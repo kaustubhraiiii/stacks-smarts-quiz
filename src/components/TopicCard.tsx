@@ -1,6 +1,4 @@
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Network, Database, Cpu, ArrowRight } from 'lucide-react';
+import { Network, Database, Cpu, Star } from 'lucide-react';
 import { Topic } from '@/types/quiz';
 
 interface TopicCardProps {
@@ -13,19 +11,22 @@ const topicInfo = {
     title: 'Networks',
     description: 'Test your knowledge of networking concepts, protocols, and architectures',
     icon: Network,
-    gradient: 'from-blue-500 to-cyan-500'
+    tag: 'INFRASTRUCTURE',
+    bgColor: 'bg-card-yellow'
   },
   'operating-systems': {
     title: 'Operating Systems',
     description: 'Master process management, scheduling, memory, and file systems',
     icon: Cpu,
-    gradient: 'from-purple-500 to-pink-500'
+    tag: 'SYSTEMS',
+    bgColor: 'bg-card-pink'
   },
   databases: {
     title: 'Databases',
     description: 'Challenge yourself on SQL, transactions, indexing, and normalization',
     icon: Database,
-    gradient: 'from-green-500 to-emerald-500'
+    tag: 'DATA',
+    bgColor: 'bg-card-blue'
   }
 };
 
@@ -34,35 +35,32 @@ export const TopicCard = ({ topic, onSelect }: TopicCardProps) => {
   const Icon = info.icon;
 
   return (
-    <Card 
-      className="group hover:scale-105 transition-all cursor-pointer animate-slide-up overflow-hidden relative"
-      onClick={() => {
-        console.log('TopicCard clicked:', topic);
-        onSelect(topic);
-      }}
+    <div 
+      className={`group ${info.bgColor} rounded-[32px] p-8 cursor-pointer transition-transform hover:-translate-y-2 relative overflow-hidden min-h-[320px] flex flex-col`}
+      onClick={() => onSelect(topic)}
     >
-      <div className={`absolute inset-0 bg-gradient-to-br ${info.gradient} opacity-0 group-hover:opacity-10 transition-opacity`} />
-      <CardHeader>
-        <div className="w-12 h-12 rounded-lg bg-gradient-primary flex items-center justify-center mb-4 group-hover:animate-pulse-glow">
-          <Icon className="w-6 h-6 text-primary-foreground" />
-        </div>
-        <CardTitle className="text-xl">{info.title}</CardTitle>
-        <CardDescription>{info.description}</CardDescription>
-      </CardHeader>
-      <CardContent>
-        <Button 
-          onClick={(e) => {
-            e.stopPropagation();
-            console.log('Start Quiz button clicked:', topic);
-            onSelect(topic);
-          }} 
-          className="w-full group/btn"
-          variant="outline"
-        >
-          Start Quiz
-          <ArrowRight className="w-4 h-4 ml-2 group-hover/btn:translate-x-1 transition-transform" />
-        </Button>
-      </CardContent>
-    </Card>
+      <div className="flex justify-between items-start mb-6 z-10">
+        <span className="bg-white/20 text-white text-xs font-bold px-3 py-1.5 rounded-full tracking-wider">
+          {info.tag}
+        </span>
+      </div>
+      
+      <div className="z-10 mt-2 flex-1">
+        <h3 className="text-3xl font-bold text-white mb-3 leading-tight">
+          {info.title}
+        </h3>
+        <p className="text-white/90 text-[15px] leading-relaxed max-w-[90%]">
+          {info.description}
+        </p>
+      </div>
+
+      <div className="flex items-center gap-2 text-white/80 mt-6 z-10 font-medium">
+        <Star className="w-4 h-4" />
+        <span className="text-sm">Popular</span>
+      </div>
+
+      {/* Decorative Icon */}
+      <Icon className="absolute -bottom-6 -right-6 w-48 h-48 text-white opacity-10 group-hover:scale-110 transition-transform duration-500 ease-out" strokeWidth={1} />
+    </div>
   );
 };
