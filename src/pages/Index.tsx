@@ -10,11 +10,11 @@ import { AIBrain } from '@/components/ai/AIBrain';
 import { Button } from '@/components/ui/button';
 import { Topic, Difficulty, QuizState, Question } from '@/types/quiz';
 import { getQuestionsByTopicAndDifficulty } from '@/data/questions';
-import { GraduationCap, Trophy, LogIn, Brain } from 'lucide-react';
+import { Trophy, Brain, Search, Bell, LayoutGrid, BookOpen, Menu, X } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAuth } from '@/contexts/AuthContext';
 import { DatabaseService } from '@/services/database';
-import heroImage from '@/assets/hero-bg.jpg';
+import { Logo } from '@/components/ui/Logo';
 
 type Screen = 'home' | 'difficulty' | 'quiz' | 'results';
 
@@ -27,13 +27,13 @@ const QUIZ_DURATIONS: Record<Difficulty, number> = {
 const Index = () => {
   const { user, userProfile, loading } = useAuth();
   const [screen, setScreen] = useState<Screen>('home');
+  const [activeTab, setActiveTab] = useState<'topics' | 'leaderboard' | 'ai'>('topics');
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [selectedTopic, setSelectedTopic] = useState<Topic | null>(null);
   const [selectedDifficulty, setSelectedDifficulty] = useState<Difficulty | null>(null);
   const [questions, setQuestions] = useState<Question[]>([]);
-  const [showLeaderboard, setShowLeaderboard] = useState(false);
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [authMode, setAuthMode] = useState<'login' | 'signup'>('login');
-  const [showAIBrain, setShowAIBrain] = useState(false);
   const [quizState, setQuizState] = useState<QuizState>({
     currentQuestion: 0,
     score: 0,
@@ -47,9 +47,7 @@ const Index = () => {
   // Save quiz attempt to database
   const saveQuizAttempt = async () => {
     if (!user || !selectedTopic || !selectedDifficulty) return;
-
     const timeTaken = QUIZ_DURATIONS[selectedDifficulty] - quizState.timeRemaining;
-    
     try {
       await DatabaseService.saveQuizAttempt({
         user_id: user.id,
@@ -60,7 +58,6 @@ const Index = () => {
         time_taken: timeTaken,
         hints_used: quizState.hintsUsed
       });
-      
       toast.success('Quiz results saved!', {
         description: `You scored ${quizState.score}/${questions.length}`
       });
@@ -74,10 +71,7 @@ const Index = () => {
   useEffect(() => {
     if (screen === 'quiz' && quizState.timeRemaining > 0 && !showFeedback) {
       const timer = setTimeout(() => {
-        setQuizState(prev => ({
-          ...prev,
-          timeRemaining: prev.timeRemaining - 1
-        }));
+        setQuizState(prev => ({ ...prev, timeRemaining: prev.timeRemaining - 1 }));
       }, 1000);
       return () => clearTimeout(timer);
     } else if (screen === 'quiz' && quizState.timeRemaining === 0 && !showFeedback) {
@@ -86,30 +80,20 @@ const Index = () => {
   }, [screen, quizState.timeRemaining, showFeedback]);
 
   const handleTopicSelect = (topic: Topic) => {
-    console.log('Topic selected:', topic);
     setSelectedTopic(topic);
     setScreen('difficulty');
-    console.log('Screen set to difficulty');
   };
 
   const handleDifficultySelect = async (difficulty: Difficulty) => {
-    console.log('Difficulty selected:', difficulty, 'for topic:', selectedTopic);
     setSelectedDifficulty(difficulty);
-    
-    // Show loading state
-    toast.loading('Loading questions...', {
-      description: 'Fetching AI-generated questions...'
-    });
+    toast.loading('Loading questions...', { description: 'Fetching AI-generated questions...' });
     
     try {
       const quizQuestions = await getQuestionsByTopicAndDifficulty(selectedTopic!, difficulty);
-      console.log('Quiz questions found:', quizQuestions.length);
-      
       if (quizQuestions.length === 0) {
         toast.error('No questions available for this topic and difficulty combination');
         return;
       }
-      
       setQuestions(quizQuestions);
       setQuizState({
         currentQuestion: 0,
@@ -121,10 +105,7 @@ const Index = () => {
       });
       setShowFeedback(false);
       setScreen('quiz');
-      console.log('Screen set to quiz');
-      toast.success('Quiz Started!', {
-        description: `Answer ${quizQuestions.length} questions on ${selectedTopic}`
-      });
+      toast.success('Quiz Started!', { description: `Answer ${quizQuestions.length} questions on ${selectedTopic}` });
     } catch (error) {
       console.error('Error loading questions:', error);
       toast.error('Failed to load questions');
@@ -138,101 +119,43 @@ const Index = () => {
     setQuizState(prev => {
       const newAnswers = [...prev.answers];
       newAnswers[prev.currentQuestion] = answerIndex;
-      return {
-        ...prev,
-        answers: newAnswers,
-        score: isCorrect ? prev.score + 1 : prev.score
-      };
+      return { ...prev, answers: newAnswers, score: isCorrect ? prev.score + 1 : prev.score };
     });
-
     setShowFeedback(true);
 
-    // Move to next question or results after delay
     setTimeout(() => {
       if (quizState.currentQuestion < questions.length - 1) {
-        setQuizState(prev => ({
-          ...prev,
-          currentQuestion: prev.currentQuestion + 1
-        }));
+        setQuizState(prev => ({ ...prev, currentQuestion: prev.currentQuestion + 1 }));
         setShowFeedback(false);
       } else {
         setQuizState(prev => ({ ...prev, isComplete: true }));
         setScreen('results');
-        // Save quiz attempt when quiz is completed
-        if (user) {
-          saveQuizAttempt();
-        }
+        if (user) saveQuizAttempt();
       }
     }, 2500);
   };
 
   const handleTimeout = () => {
-    toast.error('Time\'s Up!', {
-      description: 'The quiz has ended due to timeout'
-    });
+    toast.error('Time\'s Up!', { description: 'The quiz has ended due to timeout' });
     setQuizState(prev => ({ ...prev, isComplete: true }));
     setScreen('results');
-    // Save quiz attempt when quiz times out
-    if (user) {
-      saveQuizAttempt();
-    }
+    if (user) saveQuizAttempt();
   };
 
-  const handleHintUsed = () => {
-    setQuizState(prev => ({
-      ...prev,
-      hintsUsed: prev.hintsUsed + 1
-    }));
-  };
+  const handleHintUsed = () => setQuizState(prev => ({ ...prev, hintsUsed: prev.hintsUsed + 1 }));
 
   const handleRestart = () => {
-    if (selectedTopic && selectedDifficulty) {
-      handleDifficultySelect(selectedDifficulty);
-    }
+    if (selectedTopic && selectedDifficulty) handleDifficultySelect(selectedDifficulty);
   };
 
   const handleBackToHome = () => {
     setScreen('home');
+    setActiveTab('topics');
     setSelectedTopic(null);
     setSelectedDifficulty(null);
     setQuestions([]);
     setShowFeedback(false);
   };
-
-  if (screen === 'results') {
-    return (
-      <QuizResults
-        state={quizState}
-        totalQuestions={questions.length}
-        onRestart={handleRestart}
-        onBackToHome={handleBackToHome}
-      />
-    );
-  }
-
-  if (screen === 'quiz' && questions.length > 0) {
-    return (
-      <QuizQuestion
-        question={questions[quizState.currentQuestion]}
-        questionNumber={quizState.currentQuestion + 1}
-        totalQuestions={questions.length}
-        timeRemaining={quizState.timeRemaining}
-        onAnswer={handleAnswer}
-        onHintUsed={handleHintUsed}
-        selectedAnswer={quizState.answers[quizState.currentQuestion]}
-        showFeedback={showFeedback}
-      />
-    );
-  }
-
-  if (screen === 'difficulty' && selectedTopic) {
-    return (
-      <DifficultySelector
-        onSelect={handleDifficultySelect}
-        onBack={() => setScreen('home')}
-      />
-    );
-  }
 
   const handleAuthSuccess = () => {
     setShowAuthModal(false);
@@ -240,28 +163,20 @@ const Index = () => {
   };
 
   const openAuthModal = (mode: 'login' | 'signup') => {
-    console.log('Opening auth modal:', mode);
     setAuthMode(mode);
     setShowAuthModal(true);
-    console.log('Auth modal state set to:', true);
   };
 
   const handleAIQuizStart = (questions: Question[], topic: string, difficulty: string) => {
-    console.log('Starting AI quiz with questions:', questions);
-    
     if (questions.length === 0) {
       toast.error('No questions available to start quiz');
       return;
     }
-
-    // Set the quiz state with AI-generated questions
     setQuestions(questions);
     setSelectedTopic(topic as Topic);
     setSelectedDifficulty(difficulty as Difficulty);
     
-    // Calculate quiz duration based on difficulty
     const duration = QUIZ_DURATIONS[difficulty as Difficulty] || 60;
-    
     setQuizState({
       currentQuestion: 0,
       score: 0,
@@ -272,217 +187,207 @@ const Index = () => {
     });
     
     setShowFeedback(false);
-    setShowAIBrain(false); // Hide AI Brain and go to quiz
     setScreen('quiz');
-    
-    toast.success('AI Quiz Started!', {
-      description: `Answer ${questions.length} AI-generated questions`
-    });
+    toast.success('AI Quiz Started!', { description: `Answer ${questions.length} AI-generated questions` });
   };
 
-  // Debug logging
-  console.log('Current screen:', screen);
-  console.log('Selected topic:', selectedTopic);
-  console.log('Questions length:', questions.length);
-  console.log('User state:', { user: !!user, loading, userProfile: !!userProfile });
-  console.log('Show leaderboard:', showLeaderboard);
-
-  // Simplified auth button logic
-  const showAuthButtons = !user;
+  const changeTab = (tab: 'topics' | 'leaderboard' | 'ai') => {
+    setActiveTab(tab);
+    setScreen('home');
+    setIsSidebarOpen(false);
+  };
 
   return (
-    <div className="min-h-screen">
-      {/* Header */}
-      <header className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-        <div className="container mx-auto px-4 h-16 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <GraduationCap className="w-8 h-8 text-primary" />
-            <h1 className="text-xl font-bold">StackSmarts</h1>
+    <div className="min-h-screen bg-background p-4 md:p-6 lg:p-8 flex items-center justify-center font-sans">
+      {/* Main App Container */}
+      <div className="w-full max-w-screen-2xl bg-card rounded-[32px] shadow-main border border-border flex flex-col md:flex-row min-h-[calc(100vh-2rem)] md:min-h-[calc(100vh-4rem)] overflow-hidden relative">
+        
+        {/* Mobile Header */}
+        <div className="md:hidden flex items-center justify-between p-6 border-b border-border">
+          <div className="flex items-center gap-3">
+             <Logo className="w-8 h-8" />
+             <span className="font-bold text-lg text-foreground tracking-tight">StackSmarts</span>
           </div>
-          
-          <div className="flex items-center gap-4">
+          <button onClick={() => setIsSidebarOpen(!isSidebarOpen)} className="p-2 text-muted-foreground hover:text-foreground">
+            {isSidebarOpen ? <X/> : <Menu/>}
+          </button>
+        </div>
+
+        {/* Sidebar */}
+        <aside className={`absolute z-20 top-0 left-0 bg-card border-r border-border flex-col p-8 transition-transform duration-300 w-72 h-full flex md:relative md:w-64 lg:w-72 md:translate-x-0 ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
+          {/* Logo */}
+          <div className="hidden md:flex items-center gap-3 mb-12">
+            <Logo className="w-10 h-10" />
+            <h1 className="text-2xl font-bold tracking-tight text-foreground">StackSmarts</h1>
+          </div>
+
+          {/* Navigation */}
+          <div className="flex-1 space-y-8">
+            <div>
+              <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-4 ml-3">Learning Content</h2>
+              <nav className="space-y-2">
+                <button 
+                  onClick={() => changeTab('topics')}
+                  className={`w-full flex items-center gap-3 px-4 py-3.5 rounded-2xl text-[15px] font-medium transition-all ${activeTab === 'topics' && screen === 'home' ? 'bg-primary/10 text-primary' : 'text-muted-foreground hover:bg-secondary/80 hover:text-foreground'}`}
+                >
+                  <LayoutGrid className="w-5 h-5" />
+                  Topics
+                </button>
+                <button 
+                  onClick={() => changeTab('ai')}
+                  className={`w-full flex items-center gap-3 px-4 py-3.5 rounded-2xl text-[15px] font-medium transition-all ${activeTab === 'ai' && screen === 'home' ? 'bg-primary/10 text-primary' : 'text-muted-foreground hover:bg-secondary/80 hover:text-foreground'}`}
+                >
+                  <Brain className="w-5 h-5" />
+                  AI Generator
+                </button>
+              </nav>
+            </div>
+
+            <div>
+              <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-4 ml-3">Community</h2>
+              <nav className="space-y-2">
+                <button 
+                  onClick={() => changeTab('leaderboard')}
+                  className={`w-full flex items-center gap-3 px-4 py-3.5 rounded-2xl text-[15px] font-medium transition-all ${activeTab === 'leaderboard' && screen === 'home' ? 'bg-primary/10 text-primary' : 'text-muted-foreground hover:bg-secondary/80 hover:text-foreground'}`}
+                >
+                  <Trophy className="w-5 h-5" />
+                  Leaderboard
+                </button>
+              </nav>
+            </div>
+          </div>
+
+          {/* Bottom Profile / Auth */}
+          <div className="mt-8 pt-8 border-t border-border">
             {loading ? (
-              <div className="w-8 h-8 animate-pulse bg-muted rounded-full" />
+               <div className="w-10 h-10 animate-pulse bg-secondary rounded-full" />
             ) : user ? (
-              <UserProfile />
+               <UserProfile />
             ) : (
-              <div className="flex items-center gap-2">
-                <Button 
-                  variant="ghost" 
-                  size="sm"
-                  onClick={() => openAuthModal('login')}
-                >
-                  <LogIn className="w-4 h-4 mr-2" />
-                  Sign In
-                </Button>
-                <Button 
-                  size="sm"
-                  onClick={() => openAuthModal('signup')}
-                >
+              <div className="space-y-3 p-4 bg-orange-50/50 rounded-3xl">
+                <h3 className="text-sm font-semibold mb-1">Upgrade now</h3>
+                <p className="text-xs text-muted-foreground mb-4">Create more quizzes and track progress.</p>
+                <Button className="w-full rounded-full bg-primary hover:bg-primary/90 text-white font-medium" onClick={() => openAuthModal('signup')}>
                   Get Started
+                </Button>
+                <Button variant="ghost" className="w-full rounded-full text-foreground hover:bg-primary/10" onClick={() => openAuthModal('login')}>
+                  Sign In
                 </Button>
               </div>
             )}
           </div>
-        </div>
-      </header>
+        </aside>
 
-      {/* Hero Section */}
-      <div className="relative overflow-hidden">
-        <div 
-          className="absolute inset-0 bg-cover bg-center"
-          style={{ backgroundImage: `url(${heroImage})` }}
-        >
-          <div className="absolute inset-0 bg-gradient-to-b from-background/90 via-background/80 to-background" />
-        </div>
-        
-        <div className="relative container mx-auto px-4 py-20">
-          <div className="text-center max-w-4xl mx-auto animate-slide-up">
-            <div className="inline-flex items-center gap-2 bg-primary/10 px-4 py-2 rounded-full mb-6 border border-primary/20">
-              <GraduationCap className="w-5 h-5 text-primary" />
-              <span className="text-sm font-medium">Interactive Learning Platform</span>
-            </div>
-            
-            <h1 className="text-5xl md:text-7xl font-bold mb-6 leading-tight">
-              Welcome to{' '}
-              <span className="bg-gradient-primary bg-clip-text text-transparent">
-                StackSmarts
-              </span>
-            </h1>
-            
-            <p className="text-xl md:text-2xl text-muted-foreground mb-8 max-w-2xl mx-auto">
-              Master computer science fundamentals through engaging quizzes. Track progress, compete with peers, and level up your knowledge!
-            </p>
+        {/* Overlay for mobile sidebar */}
+        {isSidebarOpen && (
+          <div className="md:hidden fixed inset-0 bg-background/60 backdrop-blur-sm z-10" onClick={() => setIsSidebarOpen(false)} />
+        )}
 
-            <div className="flex flex-wrap gap-4 justify-center">
-              {user ? (
-                <>
-                  <Button size="lg" onClick={() => {
-                    console.log('Start Learning clicked');
-                    setShowLeaderboard(false);
-                    // Scroll to topics section
-                    const topicsSection = document.querySelector('.topics-section');
-                    if (topicsSection) {
-                      topicsSection.scrollIntoView({ behavior: 'smooth' });
-                    }
-                  }} className="group">
-                    Start Learning
-                    <GraduationCap className="w-5 h-5 ml-2 group-hover:rotate-12 transition-transform" />
-                  </Button>
-                  <Button size="lg" variant="outline" onClick={() => setShowLeaderboard(!showLeaderboard)}>
-                    <Trophy className="w-5 h-5 mr-2" />
-                    View Leaderboard
-                  </Button>
-                  <Button size="lg" variant="outline" onClick={() => setShowAIBrain(!showAIBrain)}>
-                    <Brain className="w-5 h-5 mr-2" />
-                    AI Brain
-                  </Button>
-                </>
-              ) : (
-                <>
-                  <Button size="lg" onClick={() => openAuthModal('signup')} className="group">
-                    Get Started Free
-                    <GraduationCap className="w-5 h-5 ml-2 group-hover:rotate-12 transition-transform" />
-                  </Button>
-                  <Button size="lg" variant="outline" onClick={() => setShowLeaderboard(!showLeaderboard)}>
-                    <Trophy className="w-5 h-5 mr-2" />
-                    View Leaderboard
-                  </Button>
-                  <Button size="lg" variant="outline" onClick={() => setShowAIBrain(!showAIBrain)}>
-                    <Brain className="w-5 h-5 mr-2" />
-                    AI Brain
-                  </Button>
-                </>
-              )}
+        {/* Main Content Area */}
+        <main className="flex-1 flex flex-col h-full relative overflow-hidden bg-card">
+          {/* Top Header */}
+          <header className="h-24 px-10 flex items-center justify-between">
+            <h2 className="text-3xl font-bold tracking-tight text-foreground">
+               {screen === 'home' && activeTab === 'topics' ? 'Courses' : 
+                screen === 'home' && activeTab === 'ai' ? 'AI Generator' :
+                screen === 'home' && activeTab === 'leaderboard' ? 'Leaderboard' :
+                screen === 'difficulty' ? 'Select Difficulty' :
+                screen === 'quiz' ? 'Quiz in Progress' : 'Results'}
+            </h2>
+            <div className="hidden md:flex items-center gap-6">
+              <div className="relative">
+                <Search className="w-4 h-4 absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                <input 
+                  type="text" 
+                  placeholder="Search" 
+                  className="pl-11 pr-4 py-3 bg-secondary rounded-full text-[15px] focus:outline-none focus:ring-2 focus:ring-primary/20 w-72 text-foreground font-medium placeholder:font-normal"
+                />
+              </div>
+              <button className="w-12 h-12 rounded-full border border-border flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-secondary/50 transition-colors">
+                <Bell className="w-5 h-5" />
+              </button>
             </div>
-          </div>
-        </div>
-      </div>
+          </header>
 
-      {/* Main Content */}
-      <div className="container mx-auto px-4 py-12 topics-section">
-        {showLeaderboard ? (
-          <div className="max-w-3xl mx-auto animate-slide-up">
-            <Leaderboard />
-            <div className="text-center mt-6">
-              <Button variant="ghost" onClick={() => setShowLeaderboard(false)}>
-                Back to Topics
-              </Button>
-            </div>
-          </div>
-        ) : showAIBrain ? (
-          <div className="max-w-4xl mx-auto animate-slide-up">
-            <div className="text-center mb-8">
-              <h2 className="text-3xl font-bold mb-3 flex items-center justify-center gap-3">
-                <Brain className="w-8 h-8 text-purple-500" />
-                AI Question Generator
-              </h2>
-              <p className="text-muted-foreground">Generate unlimited quiz questions using AI</p>
-            </div>
-            <AIBrain 
-              onStartQuiz={handleAIQuizStart}
-              onQuestionsGenerated={(questions) => {
-                console.log('AI questions generated:', questions);
-              }}
-            />
-            <div className="text-center mt-6">
-              <Button variant="ghost" onClick={() => setShowAIBrain(false)}>
-                Back to Topics
-              </Button>
-            </div>
-          </div>
-        ) : (
-          <>
-            <div className="text-center mb-12 animate-slide-up">
-              <h2 className="text-3xl font-bold mb-3">Choose Your Topic</h2>
-              <p className="text-muted-foreground">Select a subject area to begin your quiz journey</p>
-            </div>
-
-            <div className="grid md:grid-cols-3 gap-6 max-w-6xl mx-auto">
-              <TopicCard topic="networks" onSelect={handleTopicSelect} />
-              <TopicCard topic="operating-systems" onSelect={handleTopicSelect} />
-              <TopicCard topic="databases" onSelect={handleTopicSelect} />
-            </div>
-
-            {/* Features Section */}
-            <div className="mt-20 max-w-4xl mx-auto">
-              <h3 className="text-2xl font-bold text-center mb-8">Why StackSmarts?</h3>
-              <div className="grid md:grid-cols-3 gap-6">
-                <div className="text-center p-6 rounded-lg bg-card border">
-                  <div className="w-12 h-12 bg-gradient-primary rounded-full flex items-center justify-center mx-auto mb-4">
-                    <Trophy className="w-6 h-6 text-primary-foreground" />
-                  </div>
-                  <h4 className="font-semibold mb-2">Compete & Win</h4>
-                  <p className="text-sm text-muted-foreground">Challenge yourself and climb the leaderboard</p>
+          {/* Scrollable Content */}
+          <div className="flex-1 overflow-y-auto px-10 pb-10">
+            {screen === 'results' ? (
+              <QuizResults
+                state={quizState}
+                totalQuestions={questions.length}
+                onRestart={handleRestart}
+                onBackToHome={handleBackToHome}
+              />
+            ) : screen === 'quiz' && questions.length > 0 ? (
+              <div className="max-w-4xl mx-auto mt-4">
+                <QuizQuestion
+                  question={questions[quizState.currentQuestion]}
+                  questionNumber={quizState.currentQuestion + 1}
+                  totalQuestions={questions.length}
+                  timeRemaining={quizState.timeRemaining}
+                  onAnswer={handleAnswer}
+                  onHintUsed={handleHintUsed}
+                  selectedAnswer={quizState.answers[quizState.currentQuestion]}
+                  showFeedback={showFeedback}
+                />
+              </div>
+            ) : screen === 'difficulty' && selectedTopic ? (
+              <div className="max-w-5xl mx-auto mt-8 animate-slide-up">
+                <DifficultySelector
+                  onSelect={handleDifficultySelect}
+                  onBack={() => setScreen('home')}
+                />
+              </div>
+            ) : screen === 'home' && activeTab === 'leaderboard' ? (
+              <div className="max-w-4xl mx-auto mt-8 animate-slide-up"><Leaderboard /></div>
+            ) : screen === 'home' && activeTab === 'ai' ? (
+              <div className="max-w-4xl mx-auto mt-8 animate-slide-up">
+                <div className="bg-card-purple/10 border-2 border-card-purple/20 p-8 rounded-3xl mb-8">
+                  <h3 className="text-2xl font-bold mb-2 text-card-purple">Generate Custom Quizzes</h3>
+                  <p className="text-muted-foreground">Use our AI to instantly create adaptive questions on any topic.</p>
                 </div>
-                <div className="text-center p-6 rounded-lg bg-card border">
-                  <div className="w-12 h-12 bg-gradient-primary rounded-full flex items-center justify-center mx-auto mb-4">
-                    <GraduationCap className="w-6 h-6 text-primary-foreground" />
+                <AIBrain 
+                  onStartQuiz={handleAIQuizStart}
+                  onQuestionsGenerated={(questions) => console.log('Generated', questions)}
+                />
+              </div>
+            ) : (
+              // Topics view
+              <div className="animate-slide-up mt-4">
+                {/* Filter Row */}
+                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-8 pb-6 border-b border-border">
+                  <div className="flex gap-8 items-center">
+                    <div className="flex items-center gap-3 text-sm text-muted-foreground bg-secondary/50 px-4 py-2 rounded-xl">
+                      <LayoutGrid className="w-4 h-4 text-warning" />
+                      <span>Sort by:</span>
+                      <span className="text-foreground font-medium flex items-center gap-1 cursor-pointer">None <span className="text-xs">▼</span></span>
+                    </div>
+                    <div className="flex items-center gap-3 text-sm text-muted-foreground bg-secondary/50 px-4 py-2 rounded-xl">
+                      <BookOpen className="w-4 h-4 text-success" />
+                      <span>Type:</span>
+                      <span className="text-foreground font-medium flex items-center gap-1 cursor-pointer">None <span className="text-xs">▼</span></span>
+                    </div>
                   </div>
-                  <h4 className="font-semibold mb-2">Adaptive Learning</h4>
-                  <p className="text-sm text-muted-foreground">Questions tailored to your skill level</p>
+                  <div className="mt-4 sm:mt-0 text-[15px] font-medium text-muted-foreground">
+                    Published 3 courses
+                  </div>
                 </div>
-                <div className="text-center p-6 rounded-lg bg-card border">
-                  <div className="w-12 h-12 bg-gradient-primary rounded-full flex items-center justify-center mx-auto mb-4">
-                    <Brain className="w-6 h-6 text-primary-foreground" />
-                  </div>
-                  <h4 className="font-semibold mb-2">AI-Powered Questions</h4>
-                  <p className="text-sm text-muted-foreground">Unlimited questions generated by AI</p>
+
+                {/* Grid */}
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 gap-8">
+                   <TopicCard topic="networks" onSelect={handleTopicSelect} />
+                   <TopicCard topic="operating-systems" onSelect={handleTopicSelect} />
+                   <TopicCard topic="databases" onSelect={handleTopicSelect} />
                 </div>
               </div>
-            </div>
-          </>
-        )}
+            )}
+          </div>
+        </main>
       </div>
-
-      {/* Auth Modal */}
-      {console.log('Rendering AuthModal with:', { isOpen: showAuthModal, mode: authMode })}
+      
       <AuthModal
         isOpen={showAuthModal}
-        onClose={() => {
-          console.log('Closing auth modal');
-          setShowAuthModal(false);
-        }}
+        onClose={() => setShowAuthModal(false)}
         defaultMode={authMode}
         onSuccess={handleAuthSuccess}
       />
