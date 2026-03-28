@@ -1,5 +1,5 @@
 import React from 'react';
-import { useAuth } from '@/contexts/AuthContext';
+import { useAuth } from '@clerk/react';
 import { Loader2 } from 'lucide-react';
 
 interface ProtectedRouteProps {
@@ -7,8 +7,8 @@ interface ProtectedRouteProps {
   fallback?: React.ReactNode;
 }
 
-export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ 
-  children, 
+export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
+  children,
   fallback = (
     <div className="min-h-screen flex items-center justify-center">
       <div className="text-center">
@@ -18,13 +18,13 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
     </div>
   )
 }) => {
-  const { user, loading } = useAuth();
+  const { isLoaded, isSignedIn } = useAuth();
 
-  if (loading) {
+  if (!isLoaded) {
     return <>{fallback}</>;
   }
 
-  if (!user) {
+  if (!isSignedIn) {
     return <>{fallback}</>;
   }
 

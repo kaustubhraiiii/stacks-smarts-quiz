@@ -1,7 +1,6 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { LoginForm } from './LoginForm';
-import { SignupForm } from './SignupForm';
+import { SignIn, SignUp } from '@clerk/react';
 
 interface AuthModalProps {
   isOpen: boolean;
@@ -10,43 +9,47 @@ interface AuthModalProps {
   onSuccess?: () => void;
 }
 
-export const AuthModal: React.FC<AuthModalProps> = ({ 
-  isOpen, 
-  onClose, 
+export const AuthModal: React.FC<AuthModalProps> = ({
+  isOpen,
+  onClose,
   defaultMode = 'login',
-  onSuccess 
 }) => {
-  const [mode, setMode] = useState<'login' | 'signup'>(defaultMode);
-  
-  console.log('AuthModal rendered with:', { isOpen, defaultMode, mode });
-
-  const handleSuccess = () => {
-    onSuccess?.();
-    onClose();
-  };
-
-  const toggleMode = () => {
-    setMode(mode === 'login' ? 'signup' : 'login');
-  };
+  const mode = defaultMode;
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-md p-0 border-none bg-transparent shadow-none">
+      <DialogContent className="sm:max-w-md p-0 border-none bg-transparent shadow-none [&>button]:hidden">
         <DialogHeader className="hidden">
           <DialogTitle className="sr-only">
             {mode === 'login' ? 'Sign in to your account' : 'Create a new account'}
           </DialogTitle>
         </DialogHeader>
-        
+
         {mode === 'login' ? (
-          <LoginForm 
-            onToggleMode={toggleMode} 
-            onSuccess={handleSuccess}
+          <SignIn
+            routing="hash"
+            signUpUrl="#"
+            appearance={{
+              elements: {
+                rootBox: 'w-full',
+                cardBox: 'w-full shadow-none',
+                card: 'w-full shadow-none',
+              },
+            }}
+            fallbackRedirectUrl="/"
           />
         ) : (
-          <SignupForm 
-            onToggleMode={toggleMode} 
-            onSuccess={handleSuccess}
+          <SignUp
+            routing="hash"
+            signInUrl="#"
+            appearance={{
+              elements: {
+                rootBox: 'w-full',
+                cardBox: 'w-full shadow-none',
+                card: 'w-full shadow-none',
+              },
+            }}
+            fallbackRedirectUrl="/"
           />
         )}
       </DialogContent>
