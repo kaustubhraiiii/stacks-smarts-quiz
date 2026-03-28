@@ -1,5 +1,6 @@
 import { supabase } from '@/integrations/supabase/client';
-import type { Tables, TablesInsert } from '@/integrations/supabase/types';
+import { SupabaseClient } from '@supabase/supabase-js';
+import type { Database, Tables, TablesInsert } from '@/integrations/supabase/types';
 
 // User Profile Types
 export type UserProfile = Tables<'user_profiles'>;
@@ -11,10 +12,12 @@ export type QuizAttemptInsert = TablesInsert<'quiz_attempts'>;
 export type QuizQuestion = Tables<'quiz_questions'>;
 export type LeaderboardEntry = Tables<'leaderboard'>;
 
+type Client = SupabaseClient<Database>;
+
 export class DatabaseService {
   // User Profile Methods
-  static async getUserProfile(userId: string): Promise<UserProfile | null> {
-    const { data, error } = await supabase
+  static async getUserProfile(client: Client, userId: string): Promise<UserProfile | null> {
+    const { data, error } = await client
       .from('user_profiles')
       .select('*')
       .eq('id', userId)
@@ -22,10 +25,9 @@ export class DatabaseService {
 
     if (error) {
       console.error('Error fetching user profile:', error);
-      // If profile doesn't exist, try to create it
       if (error.code === 'PGRST116') {
-        console.log('User profile not found, attempting to create one...');
-        return await this.createUserProfile(userId);
+        console.log('User profile not found');
+        return null;
       }
       return null;
     }
@@ -33,46 +35,14 @@ export class DatabaseService {
     return data;
   }
 
-  static async createUserProfile(userId: string): Promise<UserProfile | null> {
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user || user.id !== userId) {
-        console.error('User not found or ID mismatch');
-        return null;
-      }
-
-      const profileData: UserProfileInsert = {
-        id: userId,
-        full_name: user.user_metadata?.full_name || user.user_metadata?.name || user.email?.split('@')[0] || 'User',
-        avatar_url: user.user_metadata?.avatar_url || user.user_metadata?.picture
-      };
-
-      const { data, error } = await supabase
-        .from('user_profiles')
-        .insert(profileData)
-        .select()
-        .single();
-
-      if (error) {
-        console.error('Error creating user profile:', error);
-        return null;
-      }
-
-      console.log('User profile created successfully:', data);
-      return data;
-    } catch (err) {
-      console.error('Exception creating user profile:', err);
-      return null;
-    }
-  }
-
   static async updateUserProfile(
-    userId: string, 
+    client: Client,
+    userId: string,
     updates: Partial<UserProfileInsert>
   ): Promise<UserProfile | null> {
-    const { data, error } = await supabase
+    const { data, error } = await client
       .from('user_profiles')
-      .update(updates)
+      .update(updates as any)
       .eq('id', userId)
       .select()
       .single();
@@ -86,10 +56,10 @@ export class DatabaseService {
   }
 
   // Quiz Attempt Methods
-  static async saveQuizAttempt(attempt: QuizAttemptInsert): Promise<QuizAttempt | null> {
-    const { data, error } = await supabase
+  static async saveQuizAttempt(client: Client, attempt: QuizAttemptInsert): Promise<QuizAttempt | null> {
+    const { data, error } = await client
       .from('quiz_attempts')
-      .insert(attempt)
+      .insert(attempt as any)
       .select()
       .single();
 
@@ -101,8 +71,8 @@ export class DatabaseService {
     return data;
   }
 
-  static async getUserQuizHistory(userId: string): Promise<QuizAttempt[]> {
-    const { data, error } = await supabase
+  static async getUserQuizHistory(client: Client, userId: string): Promise<QuizAttempt[]> {
+    const { data, error } = await client
       .from('quiz_attempts')
       .select('*')
       .eq('user_id', userId)
@@ -116,13 +86,13 @@ export class DatabaseService {
     return data || [];
   }
 
-  static async getUserStats(userId: string): Promise<{
+  static async getUserStats(client: Client, userId: string): Promise<{
     totalQuizzes: number;
     averageScore: number;
     bestScore: number;
     totalPoints: number;
   }> {
-    const { data, error } = await supabase
+    const { data, error } = await client
       .from('quiz_attempts')
       .select('score, total_questions')
       .eq('user_id', userId);
@@ -137,7 +107,9 @@ export class DatabaseService {
       };
     }
 
-    if (!data || data.length === 0) {
+    const rows = (data || []) as { score: number; total_questions: number }[];
+
+    if (rows.length === 0) {
       return {
         totalQuizzes: 0,
         averageScore: 0,
@@ -146,9 +118,9 @@ export class DatabaseService {
       };
     }
 
-    const totalQuizzes = data.length;
-    const totalPoints = data.reduce((sum, attempt) => sum + attempt.score, 0);
-    const scores = data.map(attempt => (attempt.score / attempt.total_questions) * 100);
+    const totalQuizzes = rows.length;
+    const totalPoints = rows.reduce((sum, attempt) => sum + attempt.score, 0);
+    const scores = rows.map(attempt => (attempt.score / attempt.total_questions) * 100);
     const averageScore = scores.reduce((sum, score) => sum + score, 0) / scores.length;
     const bestScore = Math.max(...scores);
 
@@ -160,7 +132,8 @@ export class DatabaseService {
     };
   }
 
-  // Leaderboard Methods
+  // Leaderboard Methods — uses the unauthenticated (anon) Supabase client
+  // since leaderboard is public data
   static async getLeaderboard(limit: number = 10): Promise<LeaderboardEntry[]> {
     const { data, error } = await supabase
       .from('leaderboard')
@@ -176,7 +149,8 @@ export class DatabaseService {
     return data || [];
   }
 
-  // Quiz Questions Methods
+  // Quiz Questions Methods — uses the unauthenticated (anon) Supabase client
+  // since quiz questions are public data
   static async getQuizQuestions(topic: string, difficulty: string): Promise<QuizQuestion[]> {
     const { data, error } = await supabase
       .from('quiz_questions')
@@ -196,7 +170,7 @@ export class DatabaseService {
   static async addQuizQuestion(question: TablesInsert<'quiz_questions'>): Promise<QuizQuestion | null> {
     const { data, error } = await supabase
       .from('quiz_questions')
-      .insert(question)
+      .insert(question as any)
       .select()
       .single();
 
@@ -206,16 +180,5 @@ export class DatabaseService {
     }
 
     return data;
-  }
-
-  // Helper method to get current user's profile
-  static async getCurrentUserProfile(): Promise<UserProfile | null> {
-    const { data: { user } } = await supabase.auth.getUser();
-    
-    if (!user) {
-      return null;
-    }
-
-    return this.getUserProfile(user.id);
   }
 }
