@@ -13,6 +13,9 @@ export default {
       },
     },
     extend: {
+      fontFamily: {
+        sans: ['Outfit', 'sans-serif'],
+      },
       colors: {
         border: "hsl(var(--border))",
         input: "hsl(var(--input))",
@@ -55,23 +58,24 @@ export default {
           DEFAULT: "hsl(var(--card))",
           foreground: "hsl(var(--card-foreground))",
         },
+        'card-yellow': '#F8D558',
+        'card-pink': '#F56094',
+        'card-purple': '#A976FF',
+        'card-blue': '#6AA0FF',
       },
-      backgroundImage: {
-        'gradient-primary': 'var(--gradient-primary)',
-        'gradient-success': 'var(--gradient-success)',
-        'gradient-glow': 'var(--gradient-glow)',
-      },
+      backgroundImage: {},
       boxShadow: {
-        'glow': 'var(--shadow-glow)',
-        'card': 'var(--shadow-card)',
+        'main': 'var(--shadow-main)',
       },
       transitionTimingFunction: {
         'smooth': 'var(--transition-smooth)',
       },
       borderRadius: {
+        '4xl': '2rem', /* 32px */
+        '5xl': '2.5rem', /* 40px */
         lg: "var(--radius)",
-        md: "calc(var(--radius) - 2px)",
-        sm: "calc(var(--radius) - 4px)",
+        md: "calc(var(--radius) - 4px)",
+        sm: "calc(var(--radius) - 8px)",
       },
       keyframes: {
         "accordion-down": {
