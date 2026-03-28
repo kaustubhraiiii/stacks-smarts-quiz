@@ -47,9 +47,69 @@ export class AIQuestionGenerator {
       - Indexing strategies and performance
       - Database security and backup
       - NoSQL databases (MongoDB, Redis)
-      - Data warehousing and analytics`
+      - Data warehousing and analytics`,
+
+      'generative-ai': `Generative AI and Large Language Models:
+      - Transformer architecture and attention mechanisms
+      - Large Language Models (GPT, Claude, LLaMA)
+      - Prompt engineering techniques and best practices
+      - Retrieval-Augmented Generation (RAG)
+      - Fine-tuning and transfer learning
+      - Diffusion models for image generation
+      - AI agents and tool use
+      - Ethical considerations and AI safety`,
+
+      'machine-learning': `Machine Learning Fundamentals:
+      - Supervised learning (regression, classification)
+      - Unsupervised learning (clustering, dimensionality reduction)
+      - Neural networks and deep learning
+      - Decision trees, random forests, SVMs
+      - Evaluation metrics (accuracy, precision, recall, F1, AUC)
+      - Bias-variance tradeoff and regularization
+      - Feature engineering and selection
+      - Cross-validation and hyperparameter tuning`,
+
+      'cloud-computing': `Cloud Computing and Infrastructure:
+      - AWS, Azure, GCP core services
+      - IaaS, PaaS, SaaS models
+      - Containerization (Docker, Kubernetes)
+      - Serverless computing (Lambda, Cloud Functions)
+      - Cloud networking (VPC, load balancers, CDN)
+      - IAM and cloud security
+      - Cost optimization and scaling strategies
+      - CI/CD and DevOps in the cloud`,
+
+      cybersecurity: `Cybersecurity Fundamentals:
+      - Network security (firewalls, IDS/IPS, VPN)
+      - Encryption and cryptography (symmetric, asymmetric, hashing)
+      - Authentication and authorization mechanisms
+      - OWASP Top 10 web vulnerabilities
+      - Penetration testing methodology
+      - Incident response and forensics
+      - Security frameworks (NIST, ISO 27001)
+      - Threat modeling and risk assessment`,
+
+      'web-development': `Web Development:
+      - HTML5, CSS3, and modern JavaScript (ES6+)
+      - React fundamentals (components, hooks, state management)
+      - REST API design and HTTP methods
+      - Database integration and ORMs
+      - Responsive design and CSS frameworks
+      - Performance optimization (lazy loading, caching)
+      - Web accessibility (WCAG, ARIA)
+      - Version control with Git`,
+
+      mathematics: `Mathematics for Technology and ML:
+      - Linear algebra: vectors, matrices, eigenvalues, transformations
+      - Matrix operations and decompositions (SVD, PCA)
+      - Calculus: limits, derivatives, integrals
+      - Multivariable calculus and partial derivatives
+      - Gradient descent and optimization
+      - Probability and statistics fundamentals
+      - Chain rule and backpropagation
+      - Applied math in machine learning contexts`
     };
-    
+
     return contexts[topic] || '';
   }
 
@@ -87,14 +147,7 @@ export class AIQuestionGenerator {
       const topicContext = this.getTopicContext(options.topic);
       const difficultyInstructions = this.getDifficultyInstructions(options.difficulty);
       
-      const prompt = options.customPrompt || `
-You are an expert computer science educator. Generate ${options.count} high-quality quiz questions about ${options.topic}.
-
-Topic Context:
-${topicContext}
-
-${difficultyInstructions}
-
+      const baseInstructions = `
 Requirements:
 1. Each question must have exactly 4 answer options (A, B, C, D)
 2. Include exactly 1 correct answer and 3 plausible but incorrect distractors
@@ -118,6 +171,21 @@ Return the response in the following JSON format:
 }
 
 Make sure the JSON is valid and properly formatted.`;
+
+      const prompt = options.customPrompt
+        ? `You are an expert educator. Generate ${options.count} high-quality quiz questions about ${options.topic} (${options.difficulty} difficulty).
+
+Custom instructions: ${options.customPrompt}
+
+${baseInstructions}`
+        : `You are an expert computer science educator. Generate ${options.count} high-quality quiz questions about ${options.topic}.
+
+Topic Context:
+${topicContext}
+
+${difficultyInstructions}
+
+${baseInstructions}`;
 
       const completion = await openai.chat.completions.create({
         model: "gpt-3.5-turbo",
