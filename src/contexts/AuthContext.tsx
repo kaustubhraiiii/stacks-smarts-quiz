@@ -1,254 +1,145 @@
-import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
-import { User, Session } from '@supabase/supabase-js';
-import { supabase } from '@/integrations/supabase/client';
-import { DatabaseService, UserProfile } from '@/services/database';
+import React, { createContext, useContext, useEffect, useState, useCallback, useMemo } from 'react';
+import { useUser, useAuth as useClerkAuth, useSession } from '@clerk/react';
+import { createClerkSupabaseClient } from '@/integrations/supabase/clerk-client';
+import { SupabaseClient } from '@supabase/supabase-js';
+import type { Database } from '@/integrations/supabase/types';
+import type { TablesInsert } from '@/integrations/supabase/types';
+
+export interface UserProfile {
+  id: string;
+  full_name: string | null;
+  avatar_url: string | null;
+  created_at: string;
+  updated_at: string;
+}
 
 interface AuthContextType {
-  user: User | null;
-  session: Session | null;
+  userId: string | null;
+  userFullName: string | null;
+  userEmail: string | null;
+  userAvatarUrl: string | null;
   userProfile: UserProfile | null;
-  loading: boolean;
-  signUp: (email: string, password: string, metadata?: any) => Promise<any>;
-  signIn: (email: string, password: string) => Promise<any>;
-  signOut: () => Promise<void>;
-  signInWithGoogle: () => Promise<any>;
-  updateUserProfile: (updates: Partial<UserProfile>) => Promise<void>;
+  isSignedIn: boolean;
+  isLoaded: boolean;
+  supabaseClient: SupabaseClient<Database>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-export const useAuth = () => {
+export const useAuthContext = () => {
   const context = useContext(AuthContext);
   if (context === undefined) {
-    throw new Error('useAuth must be used within an AuthProvider');
+    throw new Error('useAuthContext must be used within an AuthContextProvider');
   }
   return context;
 };
 
-interface AuthProviderProps {
+interface AuthContextProviderProps {
   children: React.ReactNode;
 }
 
-export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
-  const [user, setUser] = useState<User | null>(null);
-  const [session, setSession] = useState<Session | null>(null);
+export const AuthContextProvider: React.FC<AuthContextProviderProps> = ({ children }) => {
+  const { user, isLoaded: isUserLoaded } = useUser();
+  const { getToken, isLoaded: isAuthLoaded } = useClerkAuth();
+  const { session } = useSession();
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [clerkToken, setClerkToken] = useState<string | null>(null);
 
-  // Function to fetch user profile
-  const fetchUserProfile = useCallback(async (userId: string) => {
-    try {
-      console.log('Fetching user profile for:', userId);
-      const profile = await DatabaseService.getUserProfile(userId);
-      console.log('User profile fetched:', profile);
-      return profile;
-    } catch (error) {
-      console.error('Error fetching user profile:', error);
-      return null;
+  // Keep the Clerk token fresh for Supabase requests
+  useEffect(() => {
+    if (!session) {
+      setClerkToken(null);
+      return;
     }
-  }, []);
 
-  // Function to handle auth state changes
-  const handleAuthStateChange = useCallback(async (event: string, session: Session | null) => {
-    console.log('Auth state change:', event, session);
-    setSession(session);
-    setUser(session?.user ?? null);
-    
-    if (session?.user) {
-      // Wait a bit for the user profile to be created (especially for OAuth)
-      if (event === 'SIGNED_IN') {
-        setTimeout(async () => {
-          const profile = await fetchUserProfile(session.user.id);
-          setUserProfile(profile);
-          setLoading(false);
-        }, 1000);
-      } else {
-        const profile = await fetchUserProfile(session.user.id);
-        setUserProfile(profile);
-        setLoading(false);
+    const fetchToken = async () => {
+      try {
+        const token = await getToken({ template: 'supabase' });
+        setClerkToken(token);
+      } catch (error) {
+        console.error('Error fetching Clerk token for Supabase:', error);
+        setClerkToken(null);
       }
-    } else {
+    };
+
+    fetchToken();
+
+    // Refresh token periodically (every 50 seconds, tokens last 60s)
+    const interval = setInterval(fetchToken, 50000);
+    return () => clearInterval(interval);
+  }, [session, getToken]);
+
+  // Create a Supabase client authenticated with the Clerk JWT
+  const supabaseClient = useMemo(
+    () => createClerkSupabaseClient(clerkToken),
+    [clerkToken]
+  );
+
+  // Fetch or create user profile when user signs in
+  const fetchOrCreateProfile = useCallback(async () => {
+    if (!user || !clerkToken) {
       setUserProfile(null);
-      setLoading(false);
+      return;
     }
-  }, [fetchUserProfile]);
+
+    try {
+      // Try to fetch existing profile
+      const { data, error } = await supabaseClient
+        .from('user_profiles')
+        .select('*')
+        .eq('id', user.id)
+        .single();
+
+      if (data) {
+        setUserProfile(data);
+        return;
+      }
+
+      // Profile doesn't exist — create one
+      if (error && error.code === 'PGRST116') {
+        const profileData: TablesInsert<'user_profiles'> = {
+          id: user.id,
+          full_name: user.fullName || user.firstName || user.primaryEmailAddress?.emailAddress?.split('@')[0] || 'User',
+          avatar_url: user.imageUrl ?? null,
+        };
+
+        const { data: newProfile, error: insertError } = await supabaseClient
+          .from('user_profiles')
+          .insert(profileData as any)
+          .select()
+          .single();
+
+        if (insertError) {
+          console.error('Error creating user profile:', insertError);
+        } else {
+          setUserProfile(newProfile);
+        }
+        return;
+      }
+
+      if (error) {
+        console.error('Error fetching user profile:', error);
+      }
+    } catch (err) {
+      console.error('Exception in fetchOrCreateProfile:', err);
+    }
+  }, [user, clerkToken, supabaseClient]);
 
   useEffect(() => {
-    let mounted = true;
+    fetchOrCreateProfile();
+  }, [fetchOrCreateProfile]);
 
-    const initializeAuth = async () => {
-      try {
-        console.log('Initializing auth...');
-        const { data: { session }, error } = await supabase.auth.getSession();
-        
-        if (error) {
-          console.error('Error getting session:', error);
-          if (mounted) setLoading(false);
-          return;
-        }
+  const isLoaded = isUserLoaded && isAuthLoaded;
 
-        console.log('Initial session:', session);
-        
-        if (mounted) {
-          setSession(session);
-          setUser(session?.user ?? null);
-          
-          if (session?.user) {
-            const profile = await fetchUserProfile(session.user.id);
-            if (mounted) {
-              setUserProfile(profile);
-              setLoading(false);
-            }
-          } else {
-            setLoading(false);
-          }
-        }
-      } catch (error) {
-        console.error('Error initializing auth:', error);
-        if (mounted) setLoading(false);
-      }
-    };
-
-    initializeAuth();
-
-    // Listen for auth changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(handleAuthStateChange);
-
-    // Timeout fallback
-    const timeout = setTimeout(() => {
-      if (mounted && loading) {
-        console.log('Auth loading timeout - forcing loading to false');
-        setLoading(false);
-      }
-    }, 10000); // 10 second timeout
-
-    return () => {
-      mounted = false;
-      subscription.unsubscribe();
-      clearTimeout(timeout);
-    };
-  }, [handleAuthStateChange, fetchUserProfile, loading]);
-
-  const signUp = async (email: string, password: string, metadata?: any) => {
-    try {
-      console.log('Signing up user:', email);
-      setLoading(true);
-      const { data, error } = await supabase.auth.signUp({
-        email,
-        password,
-        options: {
-          data: metadata
-        }
-      });
-      
-      if (error) {
-        console.error('Sign up error:', error);
-        setLoading(false);
-      } else {
-        console.log('Sign up success:', data);
-        // Don't set loading to false here - let the auth state change handle it
-      }
-      
-      return { data, error };
-    } catch (err) {
-      console.error('Sign up exception:', err);
-      setLoading(false);
-      return { data: null, error: err };
-    }
-  };
-
-  const signIn = async (email: string, password: string) => {
-    try {
-      console.log('Signing in user:', email);
-      setLoading(true);
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email,
-        password
-      });
-      
-      if (error) {
-        console.error('Sign in error:', error);
-        setLoading(false);
-      } else {
-        console.log('Sign in success:', data);
-        // Don't set loading to false here - let the auth state change handle it
-      }
-      
-      return { data, error };
-    } catch (err) {
-      console.error('Sign in exception:', err);
-      setLoading(false);
-      return { data: null, error: err };
-    }
-  };
-
-  const signOut = async () => {
-    try {
-      console.log('Signing out user');
-      setLoading(true);
-      const { error } = await supabase.auth.signOut();
-      if (error) {
-        console.error('Sign out error:', error);
-      } else {
-        console.log('Sign out success');
-      }
-      setLoading(false);
-    } catch (err) {
-      console.error('Sign out exception:', err);
-      setLoading(false);
-    }
-  };
-
-  const signInWithGoogle = async () => {
-    try {
-      console.log('Signing in with Google');
-      setLoading(true);
-      const { data, error } = await supabase.auth.signInWithOAuth({
-        provider: 'google',
-        options: {
-          redirectTo: `${window.location.origin}/`,
-          queryParams: {
-            access_type: 'offline',
-            prompt: 'consent',
-          },
-        }
-      });
-      
-      if (error) {
-        console.error('Google sign in error:', error);
-        setLoading(false);
-      } else {
-        console.log('Google sign in initiated:', data);
-        // Don't set loading to false here - let the auth state change handle it
-      }
-      
-      return { data, error };
-    } catch (err) {
-      console.error('Google sign in exception:', err);
-      setLoading(false);
-      return { data: null, error: err };
-    }
-  };
-
-  const updateUserProfile = async (updates: Partial<UserProfile>) => {
-    if (!user) return;
-    
-    const updatedProfile = await DatabaseService.updateUserProfile(user.id, updates);
-    if (updatedProfile) {
-      setUserProfile(updatedProfile);
-    }
-  };
-
-  const value = {
-    user,
-    session,
+  const value: AuthContextType = {
+    userId: user?.id ?? null,
+    userFullName: user?.fullName ?? user?.firstName ?? null,
+    userEmail: user?.primaryEmailAddress?.emailAddress ?? null,
+    userAvatarUrl: user?.imageUrl ?? null,
     userProfile,
-    loading,
-    signUp,
-    signIn,
-    signOut,
-    signInWithGoogle,
-    updateUserProfile
+    isSignedIn: !!user,
+    isLoaded,
+    supabaseClient,
   };
 
   return (
