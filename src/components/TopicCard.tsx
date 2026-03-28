@@ -1,4 +1,4 @@
-import { Network, Database, Cpu, Star } from 'lucide-react';
+import { Network, Database, Cpu, Star, Sparkles, BrainCircuit, Cloud, ShieldCheck, Code, Calculator } from 'lucide-react';
 import { Topic } from '@/types/quiz';
 
 interface TopicCardProps {
@@ -6,7 +6,7 @@ interface TopicCardProps {
   onSelect: (topic: Topic) => void;
 }
 
-const topicInfo = {
+const topicInfo: Record<Topic, { title: string; description: string; icon: any; tag: string; bgColor: string }> = {
   networks: {
     title: 'Networks',
     description: 'Test your knowledge of networking concepts, protocols, and architectures',
@@ -27,6 +27,48 @@ const topicInfo = {
     icon: Database,
     tag: 'DATA',
     bgColor: 'bg-card-blue'
+  },
+  'generative-ai': {
+    title: 'Generative AI',
+    description: 'Explore LLMs, transformers, prompt engineering, RAG, and AI agents',
+    icon: Sparkles,
+    tag: 'AI',
+    bgColor: 'bg-card-purple'
+  },
+  'machine-learning': {
+    title: 'Machine Learning',
+    description: 'Learn supervised and unsupervised learning, neural networks, and evaluation metrics',
+    icon: BrainCircuit,
+    tag: 'AI',
+    bgColor: 'bg-card-pink'
+  },
+  'cloud-computing': {
+    title: 'Cloud Computing',
+    description: 'Master AWS, Azure, GCP services, containers, serverless, and cloud architecture',
+    icon: Cloud,
+    tag: 'INFRASTRUCTURE',
+    bgColor: 'bg-card-blue'
+  },
+  cybersecurity: {
+    title: 'Cybersecurity',
+    description: 'Test your skills in network security, encryption, OWASP Top 10, and threat modeling',
+    icon: ShieldCheck,
+    tag: 'SECURITY',
+    bgColor: 'bg-card-yellow'
+  },
+  'web-development': {
+    title: 'Web Development',
+    description: 'Challenge yourself on HTML, CSS, JavaScript, React, REST APIs, and accessibility',
+    icon: Code,
+    tag: 'DEVELOPMENT',
+    bgColor: 'bg-card-purple'
+  },
+  mathematics: {
+    title: 'Mathematics',
+    description: 'Applied math for tech: linear algebra, calculus, and gradient descent for ML',
+    icon: Calculator,
+    tag: 'FOUNDATIONS',
+    bgColor: 'bg-card-pink'
   }
 };
 
@@ -35,7 +77,7 @@ export const TopicCard = ({ topic, onSelect }: TopicCardProps) => {
   const Icon = info.icon;
 
   return (
-    <div 
+    <div
       className={`group ${info.bgColor} rounded-[32px] p-8 cursor-pointer transition-transform hover:-translate-y-2 relative overflow-hidden min-h-[320px] flex flex-col`}
       onClick={() => onSelect(topic)}
     >
@@ -44,7 +86,7 @@ export const TopicCard = ({ topic, onSelect }: TopicCardProps) => {
           {info.tag}
         </span>
       </div>
-      
+
       <div className="z-10 mt-2 flex-1">
         <h3 className="text-3xl font-bold text-white mb-3 leading-tight">
           {info.title}
@@ -64,3 +106,5 @@ export const TopicCard = ({ topic, onSelect }: TopicCardProps) => {
     </div>
   );
 };
+
+export { topicInfo };
